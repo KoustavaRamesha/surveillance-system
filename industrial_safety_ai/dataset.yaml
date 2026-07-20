@@ -1,0 +1,12 @@
+path: datasets
+train: images/train
+val: images/val
+
+names:
+  0: person
+  1: helmet
+  2: safety_vest
+  3: no_helmet
+  4: no_vest
+  5: fire
+  6: smoke

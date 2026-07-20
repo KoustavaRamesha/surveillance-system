@@ -1,0 +1,10 @@
+PySide6
+streamlit
+ultralytics
+opencv-python
+numpy
+pandas
+Pillow
+psutil
+pytest
+pyinstaller
