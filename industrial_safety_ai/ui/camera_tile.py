@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 import cv2
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -22,6 +22,21 @@ class CameraTile(QWidget):
         layout.addWidget(self.preview)
         layout.addWidget(self.info)
         self.setLayout(layout)
+
+        # For visual alerts
+        self._alert_timer = QTimer(self)
+        self._alert_timer.setSingleShot(True)
+        self._alert_timer.timeout.connect(self._clear_alert)
+
+    def set_alert_state(self, active: bool, duration_ms: int = 3000) -> None:
+        if active:
+            self.setStyleSheet("CameraTile { border: 4px solid red; background-color: rgba(255,0,0,30); }")
+            self._alert_timer.start(duration_ms)
+        else:
+            self._clear_alert()
+
+    def _clear_alert(self) -> None:
+        self.setStyleSheet("")
 
     def update_info(self, text: str) -> None:
         self.info.setText(text)

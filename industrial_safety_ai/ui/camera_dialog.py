@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+import uuid
 
 import cv2
 from PySide6.QtCore import Qt
@@ -97,7 +97,7 @@ class CameraDialog(QDialog):
 
     def save(self) -> None:
         camera = {
-            "camera_id": self.camera_id.text().strip() or f"CAM-{int(__import__('time').time())}",
+            "camera_id": self.camera_id.text().strip() or f"CAM-{uuid.uuid4().hex[:8]}",
             "name": self.name.text().strip(),
             "location": self.location.text().strip(),
             "source_type": self.source_type.currentText(),

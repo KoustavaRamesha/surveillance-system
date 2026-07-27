@@ -22,8 +22,8 @@ def point_in_rectangle(point: tuple[float, float], zone: dict[str, int]) -> bool
     return zone["x1"] <= x <= zone["x2"] and zone["y1"] <= y <= zone["y2"]
 
 
-def draw_zone(frame, zone: dict[str, int]):
-    annotated = frame.copy()
+def draw_zone(frame, zone: dict[str, int], in_place: bool = False):
+    annotated = frame if in_place else frame.copy()
     x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
     cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 0, 255), 2)
     cv2.putText(

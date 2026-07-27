@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from typing import Any, Dict, List
+from typing import Any
 
 from PySide6.QtCore import QThread, Signal
 
@@ -17,6 +17,9 @@ from config import (
 )
 from detector import load_model, track_frame, generate_demo_detections, draw_detections
 from core.detection_stabilizer import DetectionStabilizer
+from zone_monitor import detect_intrusions, validate_zone_coordinates
+from config import DEFAULT_ZONE
+import json
 
 
 class InferenceManager(QThread):
@@ -44,15 +47,19 @@ class InferenceManager(QThread):
         self.demo_mode = demo_mode
         self._running = False
         # per-camera bounded latest-frame queue
-        self._frames: Dict[str, deque] = {}
+        self._frames: dict[str, deque] = {}
         self._frames_lock = threading.Lock()
         self._model = None
         # per-camera model instances to keep tracker state separate
-        self._camera_models: Dict[str, object] = {}
+        self._camera_models: dict[str, object] = {}
         # per-camera stabilizers
-        self._stabilizers: Dict[str, DetectionStabilizer] = {}
+        self._stabilizers: dict[str, DetectionStabilizer] = {}
         # inference FPS trackers
-        self._last_infer_time: Dict[str, float] = {}
+        self._last_infer_time: dict[str, float] = {}
+        # per-camera demo frame counter
+        self._demo_frame_counter: dict[str, int] = {}
+        # per-camera zone configuration
+        self._camera_zones: dict[str, dict] = {}
 
     def start_manager(self) -> None:
         if not self.isRunning():
@@ -85,8 +92,16 @@ class InferenceManager(QThread):
             self._model = None
             self.status_updated.emit(f"Model load failed: {exc}")
 
-    def submit_frame(self, camera_id: str, frame: Any) -> None:
+    def submit_frame(self, camera_id: str, frame: Any, zone_config: dict | None = None) -> None:
+        """Add a frame to the processing queue. Overwrites if full (keeps only latest)."""
+        if not self._running:
+            return
+        
         with self._frames_lock:
+            # Update zone config if provided
+            if zone_config:
+                self._camera_zones[camera_id] = zone_config
+
             q = self._frames.get(camera_id)
             if q is None:
                 q = deque(maxlen=FRAME_QUEUE_MAXLEN)
@@ -106,7 +121,7 @@ class InferenceManager(QThread):
                 logging.basicConfig(level=logging.DEBUG)
             while self._running and not self.isInterruptionRequested():
                 start = time.time()
-                camera_items: List[tuple[str, Any]] = []
+                camera_items: list[tuple[str, Any]] = []
                 with self._frames_lock:
                     for cid, q in list(self._frames.items()):
                         if not q:
@@ -119,8 +134,10 @@ class InferenceManager(QThread):
 
                 for camera_id, frame, queue_size in camera_items:
                     try:
-                        if self.demo_mode or self._model is None:
-                            detections = generate_demo_detections(frame, 1, {"x1": 0, "y1": 0, "x2": frame.shape[1], "y2": frame.shape[0], "name": "Zone"})
+                        if self.demo_mode or self.model_path is None:
+                            counter = self._demo_frame_counter.get(camera_id, 0) + 1
+                            self._demo_frame_counter[camera_id] = counter
+                            detections = generate_demo_detections(frame, counter, {"x1": 0, "y1": 0, "x2": frame.shape[1], "y2": frame.shape[0], "name": "Zone"})
                         else:
                             # ensure per-camera model instance for persistent tracking
                             cam_model = self._camera_models.get(camera_id)
@@ -142,6 +159,40 @@ class InferenceManager(QThread):
 
                         try:
                             # In diagnostic mode skip custom smoothing/confirmation so we can compare raw tracker output
+                            if not self.demo_mode and len(detections) > 0:
+                                # Apply restricted zone intrusion detection
+                                zone_cfg = self._camera_zones.get(camera_id, DEFAULT_ZONE)
+                                try:
+                                    h, w = frame.shape[:2]
+                                    validated_zone = validate_zone_coordinates(zone_cfg, w, h)
+                                    
+                                    # Scale zone coordinates if the frame was resized for inference
+                                    if "ref_width" in zone_cfg and "ref_height" in zone_cfg:
+                                        rw = zone_cfg["ref_width"]
+                                        rh = zone_cfg["ref_height"]
+                                        rx = w / rw
+                                        ry = h / rh
+                                        scaled_zone = {
+                                            "x1": int(zone_cfg["x1"] * rx),
+                                            "y1": int(zone_cfg["y1"] * ry),
+                                            "x2": int(zone_cfg["x2"] * rx),
+                                            "y2": int(zone_cfg["y2"] * ry),
+                                            "name": zone_cfg.get("name", "Restricted Zone")
+                                        }
+                                        validated_zone = validate_zone_coordinates(scaled_zone, w, h)
+                                        
+                                    intrusion_detections = detect_intrusions(detections, validated_zone)
+                                    # Append intrusion specific labels
+                                    for intrusion in intrusion_detections:
+                                        # Clone it to add a new event
+                                        new_det = intrusion.copy()
+                                        new_det["label"] = "restricted_area_intrusion"
+                                        new_det["zone"] = validated_zone["name"]
+                                        detections.append(new_det)
+                                        
+                                except Exception as e:
+                                    print(f"Error checking intrusions: {e}")
+
                             if getattr(self, "diagnostic_mode", False):
                                 # optional person-only filter for diagnostics
                                 if getattr(self, "diagnostic_person_only", False):
@@ -197,9 +248,9 @@ class InferenceManager(QThread):
                     except Exception as exc:
                         self.status_updated.emit(f"Inference error for {camera_id}: {exc}")
 
-            elapsed = time.time() - start
-            to_sleep = max(0.0, interval - elapsed)
-            time.sleep(to_sleep)
+                elapsed = time.time() - start
+                to_sleep = max(0.0, interval - elapsed)
+                time.sleep(to_sleep)
         except Exception as exc:
             import traceback
 

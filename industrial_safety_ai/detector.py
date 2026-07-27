@@ -27,13 +27,17 @@ class Detection:
     confidence: float
     box: list[float]
     centre: list[float]
+    track_id: int = -1
+    interpolated: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "track_id": self.track_id,
             "label": self.label,
             "confidence": self.confidence,
             "box": self.box,
             "centre": self.centre,
+            "interpolated": self.interpolated,
         }
 
 
@@ -116,7 +120,7 @@ def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, img
     res0 = results[0]
     boxes = getattr(res0, "boxes", None)
     if boxes is None or len(boxes) == 0:
-        return []
+        return [], None
 
     xyxy = boxes.xyxy.cpu().numpy()
     confidences = boxes.conf.cpu().numpy()

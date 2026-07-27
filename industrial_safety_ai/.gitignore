@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+env/
+venv/
+*.db
+*.db-shm
+*.db-wal
+temp_uploads/
+evidence/
+training_runs/
+models/*.pt
+!models/yolov8n.pt
+.DS_Store

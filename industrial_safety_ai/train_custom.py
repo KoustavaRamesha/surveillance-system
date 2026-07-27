@@ -22,7 +22,7 @@ def main() -> None:
     args = parse_args()
     TRAINING_RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Training stays outside Streamlit so the demo app remains simple and fast.
+    # Training runs separately from the main app to avoid blocking the UI.
     model = YOLO(args.model)
     model.train(
         data=args.data,

@@ -10,7 +10,9 @@ from config import DATABASE_PATH, INCIDENT_STATUSES
 
 
 def get_connection(db_path: Path = DATABASE_PATH) -> sqlite3.Connection:
-    connection = sqlite3.connect(db_path)
+    connection = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA synchronous=NORMAL")
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -56,7 +58,6 @@ def add_incident(
     timestamp: str | None = None,
     db_path: Path = DATABASE_PATH,
 ) -> int:
-    create_incidents_table(db_path)
     if status not in INCIDENT_STATUSES:
         raise ValueError(f"Unsupported incident status: {status}")
     incident_timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -96,7 +97,6 @@ def read_incidents(
     severity: str | None = None,
     status: str | None = None,
 ) -> list[dict[str, Any]]:
-    create_incidents_table(db_path)
     query = "SELECT * FROM incidents"
     filters: list[str] = []
     params: list[Any] = []
@@ -124,7 +124,6 @@ def update_incident_status(
     status: str,
     db_path: Path = DATABASE_PATH,
 ) -> None:
-    create_incidents_table(db_path)
     if status not in INCIDENT_STATUSES:
         raise ValueError(f"Unsupported incident status: {status}")
     try:

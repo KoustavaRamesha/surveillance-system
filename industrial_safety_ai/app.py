@@ -197,18 +197,22 @@ def process_video(
         intrusion_detections = detect_intrusions(detections, validated_zone)
 
         current_time = datetime.now()
-        for detection in intrusion_detections:
-            event_type = "restricted_area_intrusion"
-            last_logged = latest_logged_time.get(_event_key(event_type, validated_zone["name"]))
+
+        def _log_single_incident(event_type: str, detection: dict) -> dict | None:
+            """Check cooldown, save evidence, write to DB, return incident record or None."""
+            nonlocal incident_counter, last_alert_message, last_event_summary
+            key = _event_key(event_type, validated_zone["name"])
+            last_logged = latest_logged_time.get(key)
             if last_logged is not None:
-                cooldown_seconds = (current_time - last_logged).total_seconds()
-                if cooldown_seconds < ALERT_COOLDOWN_SECONDS:
-                    continue
+                if (current_time - last_logged).total_seconds() < ALERT_COOLDOWN_SECONDS:
+                    return None
 
             incident_counter += 1
             severity = severity_for_event(event_type)
             recommendation = recommendation_for_event(event_type)
-            evidence_path = save_incident_frame(annotated_frame, event_type, f"frame{frame_index}_{incident_counter}")
+            evidence_path = save_incident_frame(
+                annotated_frame, event_type, f"frame{frame_index}_{incident_counter}"
+            )
             incident_id = add_incident(
                 event_type=event_type,
                 severity=severity,
@@ -218,7 +222,7 @@ def process_video(
                 evidence_image_path=str(evidence_path),
                 status=DEFAULT_STATUS,
             )
-            latest_logged_time[_event_key(event_type, validated_zone["name"])] = current_time
+            latest_logged_time[key] = current_time
             last_alert_message = f"{event_type.replace('_', ' ').title()} detected in {validated_zone['name']}"
             last_event_summary = {
                 "event_type": event_type,
@@ -228,7 +232,7 @@ def process_video(
                 "zone": validated_zone["name"],
                 "timestamp": current_time.strftime("%Y-%m-%d %H:%M:%S"),
             }
-            incident_record = {
+            return {
                 "id": incident_id,
                 "timestamp": current_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "event_type": event_type,
@@ -239,8 +243,14 @@ def process_video(
                 "status": DEFAULT_STATUS,
                 "evidence_image_path": str(evidence_path),
             }
-            processed_incidents.append(incident_record)
 
+        # Log restricted-area intrusions
+        for detection in intrusion_detections:
+            record = _log_single_incident("restricted_area_intrusion", detection)
+            if record:
+                processed_incidents.append(record)
+
+        # Log other safety incidents (no_helmet, fire, smoke, etc.)
         for detection in detections:
             normalized_label = normalize_class_name(detection.get("label", ""))
             if normalized_label == "person":
@@ -249,48 +259,9 @@ def process_video(
                 continue
             if not is_loggable_incident(normalized_label):
                 continue
-
-            last_logged = latest_logged_time.get(_event_key(normalized_label, validated_zone["name"]))
-            if last_logged is not None:
-                cooldown_seconds = (current_time - last_logged).total_seconds()
-                if cooldown_seconds < ALERT_COOLDOWN_SECONDS:
-                    continue
-
-            incident_counter += 1
-            severity = severity_for_event(normalized_label)
-            recommendation = recommendation_for_event(normalized_label)
-            evidence_path = save_incident_frame(annotated_frame, normalized_label, f"frame{frame_index}_{incident_counter}")
-            incident_id = add_incident(
-                event_type=normalized_label,
-                severity=severity,
-                zone=validated_zone["name"],
-                confidence=float(detection.get("confidence", 0.0)),
-                recommendation=recommendation,
-                evidence_image_path=str(evidence_path),
-                status=DEFAULT_STATUS,
-            )
-            latest_logged_time[_event_key(normalized_label, validated_zone["name"])] = current_time
-            last_alert_message = f"{normalized_label.replace('_', ' ').title()} detected in {validated_zone['name']}"
-            last_event_summary = {
-                "event_type": normalized_label,
-                "severity": severity,
-                "recommendation": recommendation,
-                "confidence": round(float(detection.get("confidence", 0.0)), 2),
-                "zone": validated_zone["name"],
-                "timestamp": current_time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-            incident_record = {
-                "id": incident_id,
-                "timestamp": current_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "event_type": normalized_label,
-                "severity": severity,
-                "zone": validated_zone["name"],
-                "confidence": round(float(detection.get("confidence", 0.0)), 2),
-                "recommendation": recommendation,
-                "status": DEFAULT_STATUS,
-                "evidence_image_path": str(evidence_path),
-            }
-            processed_incidents.append(incident_record)
+            record = _log_single_incident(normalized_label, detection)
+            if record:
+                processed_incidents.append(record)
 
         frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
         frame_placeholder.image(frame_rgb, caption=f"Processed frame {frame_index}", use_container_width=True)
@@ -422,6 +393,13 @@ def render_analysis_tab() -> None:
             st.error(str(exc))
         except Exception as exc:
             st.error(f"Unexpected error during processing: {exc}")
+        finally:
+            # Clean up temp video file
+            try:
+                if video_path.exists():
+                    video_path.unlink()
+            except Exception:
+                pass
 
 
 def main() -> None:

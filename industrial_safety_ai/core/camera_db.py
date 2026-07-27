@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from config import DATABASE_PATH
+from database import get_connection
 
 
-def get_connection(db_path: Path = DATABASE_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, timeout=30)
-    conn.row_factory = sqlite3.Row
-    return conn
+_ALLOWED_CAMERA_COLUMNS = frozenset({
+    "name", "location", "source_type", "source", "username",
+    "enabled", "analytics_enabled", "recording_enabled",
+    "expected_resolution", "expected_fps", "zone_config",
+})
 
 
 def create_cameras_table(db_path: Path = DATABASE_PATH) -> None:
@@ -29,16 +30,21 @@ def create_cameras_table(db_path: Path = DATABASE_PATH) -> None:
         recording_enabled INTEGER DEFAULT 0,
         expected_resolution TEXT,
         expected_fps REAL,
+        zone_config TEXT,
         created_at TEXT
     )
     """
     with get_connection(db_path) as conn:
         conn.execute(sql)
+        # Handle migration for existing databases smoothly
+        try:
+            conn.execute("ALTER TABLE cameras ADD COLUMN zone_config TEXT;")
+        except Exception:
+            pass  # Column likely already exists
         conn.commit()
 
 
-def add_camera(camera: Dict[str, Any], db_path: Path = DATABASE_PATH) -> int:
-    create_cameras_table(db_path)
+def add_camera(camera: dict[str, Any], db_path: Path = DATABASE_PATH) -> int:
     sql = """
     INSERT INTO cameras (
         camera_id, name, location, source_type, source, username, enabled,
@@ -66,16 +72,14 @@ def add_camera(camera: Dict[str, Any], db_path: Path = DATABASE_PATH) -> int:
         return int(cursor.lastrowid)
 
 
-def list_cameras(db_path: Path = DATABASE_PATH) -> List[Dict[str, Any]]:
-    create_cameras_table(db_path)
+def list_cameras(db_path: Path = DATABASE_PATH) -> list[dict[str, Any]]:
     sql = "SELECT * FROM cameras ORDER BY id"
     with get_connection(db_path) as conn:
         rows = conn.execute(sql).fetchall()
         return [dict(row) for row in rows]
 
 
-def get_camera(camera_id: str, db_path: Path = DATABASE_PATH) -> Dict[str, Any] | None:
-    create_cameras_table(db_path)
+def get_camera(camera_id: str, db_path: Path = DATABASE_PATH) -> dict[str, Any] | None:
     sql = "SELECT * FROM cameras WHERE camera_id = ?"
     with get_connection(db_path) as conn:
         row = conn.execute(sql, (camera_id,)).fetchone()
@@ -83,18 +87,19 @@ def get_camera(camera_id: str, db_path: Path = DATABASE_PATH) -> Dict[str, Any] 
 
 
 def delete_camera(camera_id: str, db_path: Path = DATABASE_PATH) -> None:
-    create_cameras_table(db_path)
     sql = "DELETE FROM cameras WHERE camera_id = ?"
     with get_connection(db_path) as conn:
         conn.execute(sql, (camera_id,))
         conn.commit()
 
 
-def update_camera(camera_id: str, fields: Dict[str, Any], db_path: Path = DATABASE_PATH) -> None:
+def update_camera(camera_id: str, fields: dict[str, Any], db_path: Path = DATABASE_PATH) -> None:
     """Update arbitrary fields for a camera record."""
-    create_cameras_table(db_path)
     if not fields:
         return
+    invalid = set(fields.keys()) - _ALLOWED_CAMERA_COLUMNS
+    if invalid:
+        raise ValueError(f"Invalid column names: {invalid}")
     keys = list(fields.keys())
     setters = ", ".join(f"{k} = ?" for k in keys)
     params = [fields[k] for k in keys] + [camera_id]
