@@ -162,9 +162,13 @@ class MainWindow(QMainWindow):
 
         # Inference manager: load default model if available
         model_path = resolve_model_path(base_dir=BASE_DIR, models_dir=MODELS_DIR)
+        
+        from config import DEFAULT_MODEL_PATH
+        if not model_path:
+            model_path = str(DEFAULT_MODEL_PATH)
 
         from config import DEFAULT_AI_FPS
-        self.inference = InferenceManager(model_path=model_path, ai_fps=DEFAULT_AI_FPS, demo_mode=(model_path is None))
+        self.inference = InferenceManager(model_path=model_path, ai_fps=DEFAULT_AI_FPS, demo_mode=False)
         self.inference.detection_ready.connect(self.on_detections)
         self.inference.status_updated.connect(lambda s: self.statusBar().showMessage(s))
         self.inference.start_manager()
@@ -333,8 +337,8 @@ class MainWindow(QMainWindow):
             logged = self.alerts.process_detections(camera_id, cam_name, detections, annotated_frame)
             for a in logged:
                 self.alert_panel.add_alert(a)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error processing detections for alerts: {e}")
 
     def on_status(self, camera_id: str, status: str) -> None:
         tile = self._camera_tile_map.get(camera_id)

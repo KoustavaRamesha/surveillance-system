@@ -9,7 +9,7 @@ TEMP_DIR = BASE_DIR / "temp_uploads"
 DATABASE_PATH = BASE_DIR / "incidents.db"
 
 APP_TITLE = "Real-Time AI Surveillance and Safety Guidance System for Industrial Workplaces"
-DEFAULT_MODEL_PATH = MODELS_DIR / "yolov8n.pt"
+DEFAULT_MODEL_PATH = MODELS_DIR / "yolo11m.pt"
 DEFAULT_FRAME_SKIP = 3
 ALERT_COOLDOWN_SECONDS = 10
 DEFAULT_ZONE = {"x1": 100, "y1": 100, "x2": 400, "y2": 400, "name": "Restricted Zone"}
@@ -40,7 +40,7 @@ DEFAULT_IOU_THRESHOLD = 0.35
 DEFAULT_SMOOTHING_ALPHA = 0.30
 DEFAULT_REQUIRED_HITS = 3
 DEFAULT_ALLOWED_MISSES = 5
-DEFAULT_INFERENCE_FPS = 5
+DEFAULT_INFERENCE_FPS = 30
 
 # Bounded per-camera latest-frame queue size (1 keeps only latest)
 FRAME_QUEUE_MAXLEN = 2

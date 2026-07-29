@@ -59,6 +59,7 @@ class CameraWorker(QThread):
                 try:
                     cap = cv2.VideoCapture(idx, backend)
                     if cap is not None and cap.isOpened():
+                        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                         return cap
                     try:
                         cap.release()
@@ -108,8 +109,9 @@ class CameraWorker(QThread):
                     if now - self._last_emit_time >= min_emit_interval:
                         self._last_emit_time = now
                         self.frame_received.emit(self.camera_id, frame)
-                    # small sleep to avoid flooding UI (display FPS separate from capture rate)
-                    time.sleep(0.01)
+                        
+                    # Yield slightly to avoid blocking other threads entirely if reading is instant
+                    time.sleep(0.001)
 
                 # release capture and try reconnecting
                 try:

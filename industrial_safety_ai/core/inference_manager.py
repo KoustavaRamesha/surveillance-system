@@ -159,40 +159,6 @@ class InferenceManager(QThread):
 
                         try:
                             # In diagnostic mode skip custom smoothing/confirmation so we can compare raw tracker output
-                            if not self.demo_mode and len(detections) > 0:
-                                # Apply restricted zone intrusion detection
-                                zone_cfg = self._camera_zones.get(camera_id, DEFAULT_ZONE)
-                                try:
-                                    h, w = frame.shape[:2]
-                                    validated_zone = validate_zone_coordinates(zone_cfg, w, h)
-                                    
-                                    # Scale zone coordinates if the frame was resized for inference
-                                    if "ref_width" in zone_cfg and "ref_height" in zone_cfg:
-                                        rw = zone_cfg["ref_width"]
-                                        rh = zone_cfg["ref_height"]
-                                        rx = w / rw
-                                        ry = h / rh
-                                        scaled_zone = {
-                                            "x1": int(zone_cfg["x1"] * rx),
-                                            "y1": int(zone_cfg["y1"] * ry),
-                                            "x2": int(zone_cfg["x2"] * rx),
-                                            "y2": int(zone_cfg["y2"] * ry),
-                                            "name": zone_cfg.get("name", "Restricted Zone")
-                                        }
-                                        validated_zone = validate_zone_coordinates(scaled_zone, w, h)
-                                        
-                                    intrusion_detections = detect_intrusions(detections, validated_zone)
-                                    # Append intrusion specific labels
-                                    for intrusion in intrusion_detections:
-                                        # Clone it to add a new event
-                                        new_det = intrusion.copy()
-                                        new_det["label"] = "restricted_area_intrusion"
-                                        new_det["zone"] = validated_zone["name"]
-                                        detections.append(new_det)
-                                        
-                                except Exception as e:
-                                    print(f"Error checking intrusions: {e}")
-
                             if getattr(self, "diagnostic_mode", False):
                                 # optional person-only filter for diagnostics
                                 if getattr(self, "diagnostic_person_only", False):
@@ -204,6 +170,40 @@ class InferenceManager(QThread):
                         except Exception as exc:
                             self.status_updated.emit(f"Stabilizer error for {camera_id}: {exc}")
                             stable_detections = detections
+                            
+                        # Apply restricted zone intrusion detection on the stable detections
+                        if not self.demo_mode and len(stable_detections) > 0:
+                            zone_cfg = self._camera_zones.get(camera_id, DEFAULT_ZONE)
+                            try:
+                                h, w = frame.shape[:2]
+                                validated_zone = validate_zone_coordinates(zone_cfg, w, h)
+                                
+                                # Scale zone coordinates if the frame was resized for inference
+                                if "ref_width" in zone_cfg and "ref_height" in zone_cfg:
+                                    rw = zone_cfg["ref_width"]
+                                    rh = zone_cfg["ref_height"]
+                                    rx = w / rw
+                                    ry = h / rh
+                                    scaled_zone = {
+                                        "x1": int(zone_cfg["x1"] * rx),
+                                        "y1": int(zone_cfg["y1"] * ry),
+                                        "x2": int(zone_cfg["x2"] * rx),
+                                        "y2": int(zone_cfg["y2"] * ry),
+                                        "name": zone_cfg.get("name", "Restricted Zone")
+                                    }
+                                    validated_zone = validate_zone_coordinates(scaled_zone, w, h)
+                                    
+                                intrusion_detections = detect_intrusions(stable_detections, validated_zone)
+                                # Append intrusion specific labels
+                                for intrusion in intrusion_detections:
+                                    # Clone it to add a new event
+                                    new_det = intrusion.copy()
+                                    new_det["label"] = "restricted_area_intrusion"
+                                    new_det["zone"] = validated_zone["name"]
+                                    stable_detections.append(new_det)
+                                    
+                            except Exception as e:
+                                print(f"Error checking intrusions: {e}")
 
                         # annotate frame: if diagnostic, prefer Ultralytics' own plot for direct comparison
                         try:
@@ -249,8 +249,14 @@ class InferenceManager(QThread):
                         self.status_updated.emit(f"Inference error for {camera_id}: {exc}")
 
                 elapsed = time.time() - start
-                to_sleep = max(0.0, interval - elapsed)
-                time.sleep(to_sleep)
+                
+                # If we didn't process any frames, yield to avoid 100% CPU usage
+                if not camera_items:
+                    time.sleep(0.005)
+                else:
+                    # Let the thread breathe just for a fraction of a millisecond
+                    time.sleep(0.001)
+                    
         except Exception as exc:
             import traceback
 

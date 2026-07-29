@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from rules import is_loggable_incident, normalize_class_name, recommendation_for_event, severity_for_event
 from evidence import save_incident_frame
@@ -53,9 +53,9 @@ class AlertManager:
                 status="Open",
             )
 
-            # Active Alert: Send SMS for critical incidents
-            if severity.lower() == "critical":
-                send_sms_alert(f"CRITICAL: {label.replace('_', ' ').title()} detected on {camera_name} ({camera_id}) in zone '{zone_name}'.")
+            # Active Alert: Send SMS for critical/high incidents
+            if severity.lower() in {"critical", "high"}:
+                send_sms_alert(f"ALERT: {label.replace('_', ' ').title()} detected on {camera_name} ({camera_id}) in zone '{zone_name}'.")
 
             self._last_logged[key] = now
             logged.append({

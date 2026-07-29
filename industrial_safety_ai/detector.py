@@ -47,7 +47,7 @@ def _resolve_model_source(model_path: str | Path) -> str:
         return str(candidate)
 
     model_name = candidate.name.lower()
-    if model_name in {"yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt"}:
+    if model_name in {"yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8l.pt", "yolov8x.pt", "yolo11m.pt"}:
         return model_name
 
     raise FileNotFoundError(f"Model file not found: {candidate}")
@@ -55,7 +55,14 @@ def _resolve_model_source(model_path: str | Path) -> str:
 
 def load_model(model_path: str | Path) -> YOLO:
     source = _resolve_model_source(model_path)
-    return YOLO(source)
+    model = YOLO(source)
+    try:
+        # Fuse Conv2d + BatchNorm2d layers to improve inference speed
+        model.fuse()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Model fusion failed: {e}")
+    return model
 
 
 def infer_frame(model: YOLO, frame, confidence_threshold: float) -> list[dict[str, Any]]:
@@ -103,7 +110,8 @@ def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, img
         imgsz = int(DEFAULT_IMG_SIZE)
 
     # ultralytics model.track accepts numpy arrays as source
-    kwargs = {"conf": float(confidence_threshold), "verbose": False}
+    # Enable half-precision (FP16) on GPU for massive speedups
+    kwargs = {"conf": float(confidence_threshold), "verbose": False, "half": True}
     if imgsz:
         kwargs["imgsz"] = int(imgsz)
     if tracker:
