@@ -4,7 +4,7 @@ import os
 import subprocess
 from typing import Any, Optional
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QPropertyAnimation, QEasingCurve, QTimer
 from PySide6.QtGui import QColor, QFont, QPixmap, QCursor
 from PySide6.QtWidgets import (
     QDialog,
@@ -19,7 +19,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QMessageBox,
+    QGraphicsOpacityEffect,
 )
+
 
 
 class EvidencePreviewDialog(QDialog):
@@ -249,8 +251,24 @@ class AlertCardWidget(QFrame):
         self.setObjectName("AlertCard")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setMinimumHeight(132)
+
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.opacity_effect.setOpacity(1.0)
+        self.setGraphicsEffect(self.opacity_effect)
+
         self._setup_ui()
         self.update_style()
+
+    def animate_in(self):
+        """Smoothly fade card into the panel upon generation."""
+        self.opacity_effect.setOpacity(0.0)
+        anim = QPropertyAnimation(self.opacity_effect, b"opacity", self)
+        anim.setDuration(280)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.start()
+        self._entry_anim = anim
 
     def sizeHint(self) -> QSize:
         return QSize(330, 134)
@@ -1027,6 +1045,8 @@ class AlertPanel(QWidget):
 
         self.list.insertItem(0, item)
         self.list.setItemWidget(item, card)
+        card.animate_in()
+        self.list.scrollToTop()
 
         self._card_widgets.insert(0, card)
         self._update_counters()
