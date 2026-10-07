@@ -101,7 +101,7 @@ def infer_frame(model: YOLO, frame, confidence_threshold: float) -> list[dict[st
     return detections
 
 
-def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, imgsz: int | None = None, tracker: str | None = None):
+def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, imgsz: int | None = None, tracker: str | None = None, diagnostic: bool = False):
     """Run model.track on a single frame and return structured detections including track ids.
 
     Returns list of dicts: {"track_id": int, "label": str, "confidence": float, "box": [x1,y1,x2,y2], "centre": [cx,cy], "interpolated": bool}
@@ -110,8 +110,8 @@ def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, img
         imgsz = int(DEFAULT_IMG_SIZE)
 
     # ultralytics model.track accepts numpy arrays as source
-    # Enable half-precision (FP16) on GPU for massive speedups
-    kwargs = {"conf": float(confidence_threshold), "verbose": False, "half": True}
+    # Use quantize instead of deprecated half parameter
+    kwargs = {"conf": float(confidence_threshold), "verbose": False}
     if imgsz:
         kwargs["imgsz"] = int(imgsz)
     if tracker:
@@ -159,44 +159,77 @@ def track_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, img
             }
         )
 
-    # also return the Ultralytics plot for direct comparison
-    try:
-        plot_img = res0.plot()
-    except Exception:
-        plot_img = None
+    # only generate the expensive Ultralytics plot in diagnostic mode
+    plot_img = None
+    if diagnostic:
+        try:
+            plot_img = res0.plot()
+        except Exception:
+            pass
 
     return detections, plot_img
 
 
 def draw_detections(frame, detections: list[dict[str, Any]]) -> Any:
     annotated = frame.copy()
+    from rules import severity_for_event
+
     for detection in detections:
         x1, y1, x2, y2 = [int(value) for value in detection["box"]]
         track_id = detection.get("track_id")
         label = detection["label"]
-        confidence = detection["confidence"]
-        if label in {"fire", "smoke", "no_helmet", "no_vest"}:
-            colour = (0, 0, 255)
-        elif label in {"restricted_area_intrusion", "worker_fall"}:
-            colour = (0, 165, 255)
+        confidence = float(detection.get("confidence", 0.0))
+
+        # Severity-based BGR color coding
+        sev = severity_for_event(label).lower()
+        if sev == "critical":
+            colour = (35, 35, 235)    # Vibrant Crimson Red
+        elif sev == "high":
+            colour = (0, 135, 245)    # Safety Orange
+        elif sev == "medium":
+            colour = (0, 195, 245)    # Warning Amber / Gold
         else:
-            colour = (0, 255, 0)
+            colour = (60, 210, 60)    # Emerald Green (Safe / Low)
+
+        # Draw main bounding box
         cv2.rectangle(annotated, (x1, y1), (x2, y2), colour, 2)
+
+        # Corner accents for a sleek futuristic look
+        line_len = min(20, max(8, int((x2 - x1) * 0.15)))
+        cv2.line(annotated, (x1, y1), (x1 + line_len, y1), colour, 3)
+        cv2.line(annotated, (x1, y1), (x1, y1 + line_len), colour, 3)
+        cv2.line(annotated, (x2, y1), (x2 - line_len, y1), colour, 3)
+        cv2.line(annotated, (x2, y1), (x2, y1 + line_len), colour, 3)
+        cv2.line(annotated, (x1, y2), (x1 + line_len, y2), colour, 3)
+        cv2.line(annotated, (x1, y2), (x1, y2 - line_len), colour, 3)
+        cv2.line(annotated, (x2, y2), (x2 - line_len, y2), colour, 3)
+        cv2.line(annotated, (x2, y2), (x2, y2 - line_len), colour, 3)
+
+        # Clean filled label badge above the bounding box
+        display_name = label.replace("_", " ").title()
         if track_id is not None and track_id >= 0:
-            text = f"ID:{track_id} {label} {confidence:.2f}"
+            text = f"ID:{track_id} {display_name} {int(confidence * 100)}%"
         else:
-            text = f"{label} {confidence:.2f}"
-        y_text = max(20, y1 - 10)
+            text = f"{display_name} {int(confidence * 100)}%"
+
+        (text_w, text_h), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+        tag_y1 = max(0, y1 - text_h - 8)
+        tag_y2 = max(text_h + 8, y1)
+        # Background badge
+        cv2.rectangle(annotated, (x1, tag_y1), (x1 + text_w + 10, tag_y2), colour, -1)
+        # Label text in white (or dark for light backgrounds)
+        text_color = (0, 0, 0) if sev == "medium" else (255, 255, 255)
         cv2.putText(
             annotated,
             text,
-            (x1, y_text),
+            (x1 + 5, tag_y2 - 5),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            colour,
-            2,
+            0.45,
+            text_color,
+            1,
             cv2.LINE_AA,
         )
+
     return annotated
 
 

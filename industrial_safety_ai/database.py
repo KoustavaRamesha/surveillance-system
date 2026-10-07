@@ -56,6 +56,8 @@ def add_incident(
     evidence_image_path: str,
     status: str = "Open",
     timestamp: str | None = None,
+    camera_id: str | None = None,
+    camera_name: str | None = None,
     db_path: Path = DATABASE_PATH,
 ) -> int:
     if status not in INCIDENT_STATUSES:
@@ -81,8 +83,8 @@ def add_incident(
                     recommendation,
                     status,
                     evidence_image_path,
-                    None,
-                    None,
+                    camera_id,
+                    camera_name,
                     None,
                 ),
             )

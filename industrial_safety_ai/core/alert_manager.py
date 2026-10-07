@@ -51,12 +51,15 @@ class AlertManager:
                 recommendation=recommendation,
                 evidence_image_path=str(evidence_path),
                 status="Open",
+                camera_id=camera_id,
+                camera_name=camera_name,
             )
 
             # Active Alert: Send SMS for critical/high incidents
             if severity.lower() in {"critical", "high"}:
                 send_sms_alert(f"ALERT: {label.replace('_', ' ').title()} detected on {camera_name} ({camera_id}) in zone '{zone_name}'.")
 
+            time_str = now.strftime("%H:%M:%S")
             self._last_logged[key] = now
             logged.append({
                 "db_id": db_id,
@@ -64,8 +67,12 @@ class AlertManager:
                 "camera_name": camera_name,
                 "event_type": label,
                 "severity": severity,
+                "confidence": float(det.get("confidence", 0.0)),
+                "zone": zone_name,
                 "recommendation": recommendation,
                 "evidence": str(evidence_path),
+                "timestamp": time_str,
+                "status": "Open",
             })
 
         return logged

@@ -14,3 +14,6 @@ training_runs/
 models/*.pt
 !models/yolov8n.pt
 .DS_Store
+.env
+*.env
+

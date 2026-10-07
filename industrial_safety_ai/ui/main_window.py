@@ -24,33 +24,39 @@ from PySide6.QtWidgets import (
 
 from config import MODELS_DIR, BASE_DIR
 from core.alert_manager import AlertManager
-from core.camera_db import add_camera, delete_camera, get_camera, list_cameras, update_camera
+from core.camera_db import add_camera, delete_camera, get_camera, list_cameras, update_camera, cleanup_duplicate_cameras
 from core.camera_worker import CameraWorker
 from core.inference_manager import InferenceManager
 from core.model_utils import resolve_model_path
 from ui.alert_panel import AlertPanel
 from ui.camera_dialog import CameraDialog
 from ui.camera_tile import CameraTile
+from ui.toast import ToastNotificationManager
 
 
 class CameraDiscoveryWorker(QThread):
-    """Scans USB indices 0..5 for available cameras in a background thread."""
+    """Scans USB indices 0..9 for available cameras in a background thread.
 
-    camera_found = Signal(int)  # emits the USB index
+    Emits all discovered indices at once via ``cameras_discovered`` to avoid
+    race-condition duplicates that occur when indices are emitted one-by-one.
+    """
+
+    cameras_discovered = Signal(list)   # emits list[int] of valid USB indices
     finished_scan = Signal()
 
     def run(self):
-        for idx in range(6):
+        found: list[int] = []
+        for idx in range(10):
             try:
-                if sys.platform == "win32":
-                    cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
-                else:
-                    cap = cv2.VideoCapture(idx)
+                # OpenCV 5.x: explicit DSHOW/MSMF backends no longer support
+                # index-based capture. Plain VideoCapture(idx) uses the default
+                # backend which handles device enumeration correctly.
+                cap = cv2.VideoCapture(idx)
                 if cap and cap.isOpened():
                     ret, _ = cap.read()
                     cap.release()
                     if ret:
-                        self.camera_found.emit(idx)
+                        found.append(idx)
                 else:
                     try:
                         cap.release()
@@ -58,6 +64,7 @@ class CameraDiscoveryWorker(QThread):
                         pass
             except Exception:
                 continue
+        self.cameras_discovered.emit(found)
         self.finished_scan.emit()
 
 
@@ -141,7 +148,15 @@ class MainWindow(QMainWindow):
 
         # Right alert panel
         right_panel = AlertPanel()
+        right_panel.setMinimumWidth(350)
         self.alert_panel = right_panel
+
+        # Floating toast notification overlay
+        self.toast_manager = ToastNotificationManager(self)
+        self.toast_manager.view_snapshot_requested.connect(self.alert_panel._open_evidence_dialog)
+        self.toast_manager.resolve_requested.connect(lambda a: self.alert_panel._resolve_by_db_id(a.get("db_id")))
+        self.alert_panel.focus_camera_requested.connect(self._on_focus_camera)
+        self.alert_panel.sound_toggled.connect(self.toast_manager.set_sound_enabled)
 
         main_layout.addWidget(left_panel, 1)
         main_layout.addWidget(center_panel, 3)
@@ -156,6 +171,7 @@ class MainWindow(QMainWindow):
         self._workers: dict[str, CameraWorker] = {}
         self._camera_tile_map: dict[str, CameraTile] = {}
         self._camera_config_cache: dict[str, dict] = {}
+        self._parsed_zone_cache: dict[str, dict | None] = {}  # pre-parsed zone configs
         self._latest_detections: dict[str, list] = {}
         self._last_frame_display: dict[str, float] = {}
         self._last_annotation_display: dict[str, float] = {}
@@ -163,11 +179,11 @@ class MainWindow(QMainWindow):
         # Inference manager: load default model if available
         model_path = resolve_model_path(base_dir=BASE_DIR, models_dir=MODELS_DIR)
         
-        from config import DEFAULT_MODEL_PATH
+        from config import DEFAULT_MODEL_PATH, DEFAULT_AI_FPS, DEFAULT_DISPLAY_FPS
         if not model_path:
             model_path = str(DEFAULT_MODEL_PATH)
 
-        from config import DEFAULT_AI_FPS
+        self.display_frame_interval = 1.0 / max(DEFAULT_DISPLAY_FPS, 1)
         self.inference = InferenceManager(model_path=model_path, ai_fps=DEFAULT_AI_FPS, demo_mode=False)
         self.inference.detection_ready.connect(self.on_detections)
         self.inference.status_updated.connect(lambda s: self.statusBar().showMessage(s))
@@ -176,10 +192,39 @@ class MainWindow(QMainWindow):
         # Alert manager
         self.alerts = AlertManager()
 
+        # Preload recent incidents into alert panel
+        try:
+            from database import read_incidents
+            recent = read_incidents()
+            for inc in reversed(recent[:25]):
+                self.alert_panel.add_alert({
+                    "db_id": inc.get("id"),
+                    "camera_id": inc.get("camera_id") or "CAM",
+                    "camera_name": inc.get("camera_name") or "System",
+                    "event_type": inc.get("event_type"),
+                    "severity": inc.get("severity"),
+                    "confidence": float(inc.get("confidence", 0.0) or 0.0),
+                    "zone": inc.get("zone", "Global"),
+                    "recommendation": inc.get("recommendation"),
+                    "evidence": inc.get("evidence_image_path"),
+                    "timestamp": str(inc.get("timestamp", "")).split(" ")[-1] if " " in str(inc.get("timestamp")) else str(inc.get("timestamp", "")),
+                    "status": inc.get("status", "Open"),
+                })
+        except Exception as e:
+            print(f"Error preloading incidents: {e}")
+
+        # Clean up any duplicate camera entries from previous sessions
+        try:
+            removed = cleanup_duplicate_cameras()
+            if removed:
+                print(f"Cleaned up {removed} duplicate camera entries.")
+        except Exception as e:
+            print(f"Camera cleanup warning: {e}")
+
         self.refresh_cameras()
         # Discover cameras in background thread to avoid blocking UI
         self._discovery = CameraDiscoveryWorker()
-        self._discovery.camera_found.connect(self._on_camera_discovered)
+        self._discovery.cameras_discovered.connect(self._on_cameras_discovered)
         self._discovery.finished_scan.connect(lambda: self.statusBar().showMessage("Camera scan complete"))
         QTimer.singleShot(500, self._discovery.start)
 
@@ -218,18 +263,38 @@ class MainWindow(QMainWindow):
         import json
         from core.camera_db import update_camera
 
-        dialog = ZoneDialog(selected_id, tile.preview.pixmap(), self)
+        current_zone = self._parsed_zone_cache.get(selected_id)
+        dialog = ZoneDialog(selected_id, tile.preview.pixmap(), current_zone, self)
         if dialog.exec() == QDialog.Accepted:
-            zone_data = dialog.get_zone_data()
-            if zone_data:
-                zone_json = json.dumps(zone_data)
+            if dialog.is_cleared:
+                # Remove zone for this camera
                 try:
-                    update_camera(selected_id, {"zone_config": zone_json})
+                    update_camera(selected_id, {"zone_config": None})
                     if selected_id in self._camera_config_cache:
-                        self._camera_config_cache[selected_id]["zone_config"] = zone_json
-                    QMessageBox.information(self, "Success", "Restricted zone saved successfully!")
+                        self._camera_config_cache[selected_id]["zone_config"] = None
+                    self._parsed_zone_cache[selected_id] = None
+                    if hasattr(self, "inference") and self.inference is not None:
+                        with self.inference._frames_lock:
+                            self.inference._camera_zones[selected_id] = None
+                    QMessageBox.information(self, "Zone Cleared", f"Restricted zone removed for {selected_id}.")
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Failed to save zone: {e}")
+                    QMessageBox.critical(self, "Error", f"Failed to clear zone: {e}")
+            else:
+                zone_data = dialog.get_zone_data()
+                if zone_data:
+                    zone_json = json.dumps(zone_data)
+                    try:
+                        update_camera(selected_id, {"zone_config": zone_json})
+                        if selected_id in self._camera_config_cache:
+                            self._camera_config_cache[selected_id]["zone_config"] = zone_json
+                        # Update pre-parsed zone cache
+                        self._parsed_zone_cache[selected_id] = zone_data
+                        if hasattr(self, "inference") and self.inference is not None:
+                            with self.inference._frames_lock:
+                                self.inference._camera_zones[selected_id] = zone_data
+                        QMessageBox.information(self, "Success", f"Restricted zone saved for {selected_id} ({zone_data.get('name')})!")
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", f"Failed to save zone: {e}")
 
     def connect_selected(self) -> None:
         item = self.camera_list.currentItem()
@@ -249,6 +314,17 @@ class MainWindow(QMainWindow):
 
         # Cache camera config to avoid per-frame DB queries
         self._camera_config_cache[camera_id] = cam
+
+        # Pre-parse zone config once at connect time
+        zone_json = cam.get("zone_config")
+        if zone_json:
+            import json
+            try:
+                self._parsed_zone_cache[camera_id] = json.loads(zone_json)
+            except Exception:
+                self._parsed_zone_cache[camera_id] = None
+        else:
+            self._parsed_zone_cache[camera_id] = None
 
         worker = CameraWorker(camera_id=camera_id, source=source)
         worker.frame_received.connect(self.on_frame)
@@ -277,15 +353,8 @@ class MainWindow(QMainWindow):
             if cam and cam.get("analytics_enabled", 0):
                 analytics_enabled = True
                 
-                # Extract and parse zone config if available
-                zone_config = None
-                zone_json = cam.get("zone_config")
-                if zone_json:
-                    import json
-                    try:
-                        zone_config = json.loads(zone_json)
-                    except Exception:
-                        pass
+                # Use pre-parsed zone config (cached to avoid json.loads per frame)
+                zone_config = self._parsed_zone_cache.get(camera_id)
                         
                 self.inference.submit_frame(camera_id, frame, zone_config=zone_config)
 
@@ -294,7 +363,7 @@ class MainWindow(QMainWindow):
             tile = self._camera_tile_map.get(camera_id)
             if tile:
                 last_display = self._last_frame_display.get(camera_id, 0.0)
-                if now - last_display >= 0.03:
+                if now - last_display >= self.display_frame_interval:
                     self._last_frame_display[camera_id] = now
                     tile.show_frame(frame)
 
@@ -307,7 +376,7 @@ class MainWindow(QMainWindow):
         if annotated_frame is not None:
             now = time.time()
             last_display = self._last_annotation_display.get(camera_id, 0.0)
-            if now - last_display >= 0.03:
+            if now - last_display >= self.display_frame_interval:
                 self._last_annotation_display[camera_id] = now
                 tile.show_frame(annotated_frame)
 
@@ -323,12 +392,20 @@ class MainWindow(QMainWindow):
         labels = [d.get("label") for d in detections[:3]]
         tile.update_info(f"{camera_id}: {', '.join(labels)}")
 
-        # Active Alerts: flash red for critical incidents
+        # Active Alerts: flash tile border with the highest detected threat severity
         from rules import severity_for_event
+        sev_rank = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+        highest_sev = None
+        max_rank = -1
         for d in detections:
-            if severity_for_event(d.get("label", "")) == "critical":
-                tile.set_alert_state(True)
-                break
+            sev = severity_for_event(d.get("label", "")).lower()
+            rank = sev_rank.get(sev, -1)
+            if rank > max_rank and rank > 0:
+                max_rank = rank
+                highest_sev = sev
+
+        if highest_sev:
+            tile.set_alert_state(True, severity=highest_sev)
 
         # Process detections into alerts and DB entries (using cached config)
         try:
@@ -337,8 +414,21 @@ class MainWindow(QMainWindow):
             logged = self.alerts.process_detections(camera_id, cam_name, detections, annotated_frame)
             for a in logged:
                 self.alert_panel.add_alert(a)
+                self.toast_manager.show_alert_toast(a)
         except Exception as e:
             print(f"Error processing detections for alerts: {e}")
+
+    def _on_focus_camera(self, camera_id: str) -> None:
+        """Highlight and select camera in UI when an operator clicks Focus in the alert panel."""
+        for idx in range(self.camera_list.count()):
+            item = self.camera_list.item(idx)
+            if item.data(Qt.UserRole) == camera_id:
+                self.camera_list.setCurrentItem(item)
+                break
+        tile = self._camera_tile_map.get(camera_id)
+        if tile:
+            tile.set_alert_state(True, severity="medium", duration_ms=2500)
+            self.statusBar().showMessage(f"Focused camera: {camera_id}")
 
     def on_status(self, camera_id: str, status: str) -> None:
         tile = self._camera_tile_map.get(camera_id)
@@ -502,23 +592,69 @@ class MainWindow(QMainWindow):
             return
         self._toggle_maximise(tile)
 
-    def _on_camera_discovered(self, idx: int) -> None:
-        """Called from CameraDiscoveryWorker (on main thread via signal) when a USB camera is found."""
-        camera_id = f"CAM-USB-{idx}"
-        existing = list_cameras()
-        found = None
-        for cam in existing:
-            if str(cam.get("source")) == str(idx) or cam.get("camera_id") == camera_id:
-                found = cam
-                break
+    def _on_cameras_discovered(self, indices: list) -> None:
+        """Batch handler – receives *all* discovered USB indices at once.
 
-        if not found:
+        Steps:
+        1. Build a source-keyed lookup of existing USB cameras in the DB.
+        2. Prune DB entries whose USB source was NOT found during this scan
+           (i.e. the device was disconnected).
+        3. Register any newly discovered indices that are not yet in the DB.
+        4. Refresh the UI list and auto-connect every discovered camera.
+        """
+        discovered_sources = {str(i) for i in indices}
+        existing = list_cameras()
+
+        # Map existing USB cameras by their source string for fast lookup
+        usb_by_source: dict[str, dict] = {}
+        for cam in existing:
+            if cam.get("source_type") == "USB":
+                usb_by_source[str(cam.get("source"))] = cam
+
+        # --- Prune stale USB entries whose source index is gone ---
+        for src, cam in usb_by_source.items():
+            if src not in discovered_sources:
+                cam_id = cam["camera_id"]
+                # Disconnect worker if still running
+                worker = self._workers.get(cam_id)
+                if worker:
+                    try:
+                        worker.stop()
+                    except Exception:
+                        pass
+                    self._workers.pop(cam_id, None)
+                tile = self._camera_tile_map.pop(cam_id, None)
+                if tile:
+                    tile.preview.clear()
+                    tile.update_info("")
+                self._camera_config_cache.pop(cam_id, None)
+                self._parsed_zone_cache.pop(cam_id, None)
+                try:
+                    delete_camera(cam_id)
+                except Exception:
+                    pass
+
+        # --- Register new cameras ---
+        changed = False
+        camera_ids_to_connect: list[str] = []
+        for idx in indices:
+            src_str = str(idx)
+            if src_str in usb_by_source:
+                # Already in DB – just queue for connection
+                camera_ids_to_connect.append(usb_by_source[src_str]["camera_id"])
+                continue
+
+            camera_id = f"CAM-USB-{idx}"
+            # Guard against camera_id collision (different source, same name pattern)
+            if any(c.get("camera_id") == camera_id for c in existing):
+                camera_id = f"CAM-USB-{idx}-{int(time.time()) % 10000}"
+
             cam_data = {
                 "camera_id": camera_id,
                 "name": f"USB Camera {idx}",
                 "location": "",
                 "source_type": "USB",
-                "source": str(idx),
+                "source": src_str,
                 "username": None,
                 "enabled": True,
                 "analytics_enabled": True,
@@ -528,19 +664,24 @@ class MainWindow(QMainWindow):
             }
             try:
                 add_camera(cam_data)
-            except Exception:
-                return
-            self.refresh_cameras()
-        else:
-            camera_id = found.get("camera_id")
+                camera_ids_to_connect.append(camera_id)
+                changed = True
+            except Exception as e:
+                print(f"Failed to register camera idx {idx}: {e}")
 
-        # select and connect
-        for i in range(self.camera_list.count()):
-            item = self.camera_list.item(i)
-            if item.data(Qt.UserRole) == camera_id:
-                self.camera_list.setCurrentItem(item)
-                self.connect_selected()
-                break
+        if changed:
+            self.refresh_cameras()
+
+        # --- Auto-connect all discovered cameras ---
+        for cam_id in camera_ids_to_connect:
+            if cam_id in self._workers:
+                continue  # already connected
+            for i in range(self.camera_list.count()):
+                item = self.camera_list.item(i)
+                if item.data(Qt.UserRole) == cam_id:
+                    self.camera_list.setCurrentItem(item)
+                    self.connect_selected()
+                    break
 
     def closeEvent(self, event) -> None:
         # Disconnect all cameras first, then stop inference manager

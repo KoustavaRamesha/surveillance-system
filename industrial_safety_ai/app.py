@@ -28,6 +28,8 @@ from detector import draw_detections, generate_demo_detections, infer_frame, loa
 from evidence import save_incident_frame
 from rules import is_loggable_incident, normalize_class_name, recommendation_for_event, severity_for_event
 from zone_monitor import detect_intrusions, draw_zone, validate_zone_coordinates
+from core.sms_notifier import send_sms_alert
+
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 
@@ -223,6 +225,10 @@ def process_video(
                 status=DEFAULT_STATUS,
             )
             latest_logged_time[key] = current_time
+            if severity.lower() in {"critical", "high"}:
+                send_sms_alert(
+                    f"ALERT: {event_type.replace('_', ' ').title()} detected in {validated_zone['name']}."
+                )
             last_alert_message = f"{event_type.replace('_', ' ').title()} detected in {validated_zone['name']}"
             last_event_summary = {
                 "event_type": event_type,

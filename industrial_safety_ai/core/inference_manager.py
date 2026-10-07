@@ -20,6 +20,7 @@ from core.detection_stabilizer import DetectionStabilizer
 from zone_monitor import detect_intrusions, validate_zone_coordinates
 from config import DEFAULT_ZONE
 import json
+import cv2
 
 
 class InferenceManager(QThread):
@@ -98,9 +99,8 @@ class InferenceManager(QThread):
             return
         
         with self._frames_lock:
-            # Update zone config if provided
-            if zone_config:
-                self._camera_zones[camera_id] = zone_config
+            # Update or clear camera zone config
+            self._camera_zones[camera_id] = zone_config
 
             q = self._frames.get(camera_id)
             if q is None:
@@ -146,7 +146,8 @@ class InferenceManager(QThread):
                                 self._camera_models[camera_id] = cam_model
 
                             # run tracker-based inference on the latest frame (per-camera model)
-                            detections, plot_img = track_frame(cam_model, frame, self.confidence, imgsz=DEFAULT_IMG_SIZE, tracker=TRACKER_CONFIG)
+                            is_diag = getattr(self, "diagnostic_mode", False)
+                            detections, plot_img = track_frame(cam_model, frame, self.confidence, imgsz=DEFAULT_IMG_SIZE, tracker=TRACKER_CONFIG, diagnostic=is_diag)
 
                         # get per-camera stabilizer
                         stab = self._stabilizers.get(camera_id)
@@ -171,9 +172,9 @@ class InferenceManager(QThread):
                             self.status_updated.emit(f"Stabilizer error for {camera_id}: {exc}")
                             stable_detections = detections
                             
-                        # Apply restricted zone intrusion detection on the stable detections
-                        if not self.demo_mode and len(stable_detections) > 0:
-                            zone_cfg = self._camera_zones.get(camera_id, DEFAULT_ZONE)
+                        # Apply restricted zone intrusion detection if configured for this camera
+                        zone_cfg = self._camera_zones.get(camera_id)
+                        if not self.demo_mode and zone_cfg and len(stable_detections) > 0:
                             try:
                                 h, w = frame.shape[:2]
                                 validated_zone = validate_zone_coordinates(zone_cfg, w, h)
@@ -182,8 +183,8 @@ class InferenceManager(QThread):
                                 if "ref_width" in zone_cfg and "ref_height" in zone_cfg:
                                     rw = zone_cfg["ref_width"]
                                     rh = zone_cfg["ref_height"]
-                                    rx = w / rw
-                                    ry = h / rh
+                                    rx = w / max(1, rw)
+                                    ry = h / max(1, rh)
                                     scaled_zone = {
                                         "x1": int(zone_cfg["x1"] * rx),
                                         "y1": int(zone_cfg["y1"] * ry),
@@ -203,15 +204,36 @@ class InferenceManager(QThread):
                                     stable_detections.append(new_det)
                                     
                             except Exception as e:
-                                print(f"Error checking intrusions: {e}")
+                                print(f"Error checking intrusions for {camera_id}: {e}")
 
                         # annotate frame: if diagnostic, prefer Ultralytics' own plot for direct comparison
                         try:
                             if getattr(self, "diagnostic_mode", False) and not self.demo_mode and 'plot_img' in locals() and plot_img is not None:
                                 annotated = plot_img
                             else:
-                                annotated = draw_detections(frame.copy(), stable_detections) if stable_detections else frame
+                                annotated = draw_detections(frame, stable_detections) if stable_detections else frame.copy()
+
+                            # Draw restricted zone boundary on feed if configured
+                            if zone_cfg and not self.demo_mode:
+                                h, w = annotated.shape[:2]
+                                zx1 = int(zone_cfg.get("x1", 0))
+                                zy1 = int(zone_cfg.get("y1", 0))
+                                zx2 = int(zone_cfg.get("x2", 0))
+                                zy2 = int(zone_cfg.get("y2", 0))
+                                if "ref_width" in zone_cfg and "ref_height" in zone_cfg:
+                                    rx = w / max(1, zone_cfg["ref_width"])
+                                    ry = h / max(1, zone_cfg["ref_height"])
+                                    zx1, zx2 = int(zx1 * rx), int(zx2 * rx)
+                                    zy1, zy2 = int(zy1 * ry), int(zy2 * ry)
+                                z_name = zone_cfg.get("name", "Restricted Area")
+                                cv2.rectangle(annotated, (zx1, zy1), (zx2, zy2), (0, 140, 255), 2)
+                                z_tag = f"RESTRICTED: {z_name}"
+                                (zt_w, zt_h), _ = cv2.getTextSize(z_tag, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+                                tag_y = max(zt_h + 4, zy1)
+                                cv2.rectangle(annotated, (zx1, max(0, tag_y - zt_h - 6)), (zx1 + zt_w + 10, tag_y), (0, 140, 255), -1)
+                                cv2.putText(annotated, z_tag, (zx1 + 5, tag_y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
                         except Exception:
+                            annotated = frame
                             annotated = frame
 
                         # compute lightweight inference fps per camera
@@ -250,8 +272,12 @@ class InferenceManager(QThread):
 
                 elapsed = time.time() - start
                 
-                # If we didn't process any frames, yield to avoid 100% CPU usage
-                if not camera_items:
+                # Proper throttle: sleep for the remainder of the interval
+                sleep_time = interval - elapsed
+                if sleep_time > 0.001:
+                    time.sleep(sleep_time)
+                elif not camera_items:
+                    # No frames to process — yield to avoid 100% CPU spin
                     time.sleep(0.005)
                 else:
                     # Let the thread breathe just for a fraction of a millisecond

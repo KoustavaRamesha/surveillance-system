@@ -107,3 +107,32 @@ def update_camera(camera_id: str, fields: dict[str, Any], db_path: Path = DATABA
     with get_connection(db_path) as conn:
         conn.execute(sql, params)
         conn.commit()
+
+
+def get_camera_by_source(source: str, db_path: Path = DATABASE_PATH) -> dict[str, Any] | None:
+    """Find a camera record by its source string (e.g. '0' for USB index 0)."""
+    sql = "SELECT * FROM cameras WHERE source = ? LIMIT 1"
+    with get_connection(db_path) as conn:
+        row = conn.execute(sql, (source,)).fetchone()
+        return dict(row) if row else None
+
+
+def cleanup_duplicate_cameras(db_path: Path = DATABASE_PATH) -> int:
+    """Remove duplicate USB camera entries, keeping the oldest (lowest rowid) for each source.
+
+    Returns the number of rows deleted.
+    """
+    sql = """
+    DELETE FROM cameras
+    WHERE id NOT IN (
+        SELECT MIN(id) FROM cameras
+        WHERE source_type = 'USB'
+        GROUP BY source
+    )
+    AND source_type = 'USB'
+    """
+    with get_connection(db_path) as conn:
+        cursor = conn.execute(sql)
+        conn.commit()
+        return cursor.rowcount
+

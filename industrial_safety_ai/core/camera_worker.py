@@ -44,31 +44,32 @@ class CameraWorker(QThread):
         self._last_emit_time = 0.0
 
     def _open_capture(self):
-        # Try different backends on Windows for more reliable access
+        """Open a video capture handle.
+
+        For numeric sources (USB camera indices), uses the default backend
+        which works reliably on OpenCV 5.x.  For string URIs (RTSP, HTTP),
+        passes the string directly.
+        """
         try:
             if isinstance(self.source, str) and self.source.isdigit():
                 idx = int(self.source)
             elif isinstance(self.source, int):
                 idx = int(self.source)
             else:
-                # assume string URI
+                # assume string URI (RTSP, HTTP, file path, etc.)
                 return cv2.VideoCapture(self.source)
 
-            # Try DirectShow first, then MSMF, then default
-            for backend in (cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY):
-                try:
-                    cap = cv2.VideoCapture(idx, backend)
-                    if cap is not None and cap.isOpened():
-                        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                        return cap
-                    try:
-                        cap.release()
-                    except Exception:
-                        pass
-                except Exception:
-                    continue
-            # final fallback
-            return cv2.VideoCapture(idx)
+            # OpenCV 5.x: explicit DSHOW/MSMF backends no longer support
+            # index-based capture. Plain VideoCapture(idx) works correctly.
+            cap = cv2.VideoCapture(idx)
+            if cap is not None and cap.isOpened():
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                return cap
+            try:
+                cap.release()
+            except Exception:
+                pass
+            return None
         except Exception:
             return cv2.VideoCapture(self.source)
 
