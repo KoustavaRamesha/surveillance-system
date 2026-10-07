@@ -33,7 +33,7 @@ class StartupSplash:
         font = QFont("Arial", 16, QFont.Bold)
         self.splash.setFont(font)
         self.splash.showMessage(
-            "🚨 Industrial Safety Surveillance System",
+            "Industrial Safety Surveillance System",
             Qt.AlignCenter | Qt.AlignTop,
             QColor(0, 0, 0),
         )
@@ -75,7 +75,7 @@ def ensure_project_structure() -> bool:
 
         return True
     except Exception as e:
-        print(f"❌ Failed to create project structure: {e}")
+        print(f"[ERROR] Failed to create project structure: {e}")
         return False
 
 
@@ -90,7 +90,7 @@ def initialize_databases() -> bool:
 
         return True
     except Exception as e:
-        print(f"❌ Failed to initialize databases: {e}")
+        print(f"[ERROR] Failed to initialize databases: {e}")
         return False
 
 
@@ -110,11 +110,11 @@ def optimize_model_loading() -> Optional[str]:
         if model_path:
             return model_path
         else:
-            print("⚠️ No trained model found. App will run in demo mode.")
+            print("[WARN] No trained model found. App will run in demo mode.")
             return None
 
     except Exception as e:
-        print(f"⚠️ Model resolution failed: {e}. Defaulting to demo mode.")
+        print(f"[WARN] Model resolution failed: {e}. Defaulting to demo mode.")
         return None
 
 
@@ -131,29 +131,29 @@ def run_startup_sequence() -> tuple[bool, Optional[str]]:
 
     try:
         # Step 1: Ensure directories
-        splash.update_status("📁 Setting up project structure...")
+        splash.update_status("Setting up project structure...")
         if not ensure_project_structure():
-            splash.update_status("❌ Failed to create directories")
+            splash.update_status("Failed to create directories")
             return False, None
 
         # Step 2: Initialize databases
-        splash.update_status("🗄️  Initializing database...")
+        splash.update_status("Initializing database...")
         if not initialize_databases():
-            splash.update_status("❌ Failed to initialize database")
+            splash.update_status("Failed to initialize database")
             return False, None
 
         # Step 3: Resolve model path
-        splash.update_status("🤖 Locating AI model...")
+        splash.update_status("Locating AI model...")
         model_path = optimize_model_loading()
 
         # Step 4: Final checks
-        splash.update_status("✅ Startup complete!")
+        splash.update_status("Startup complete")
 
         splash.close()
         return True, model_path
 
     except Exception as e:
-        splash.update_status(f"❌ Startup error: {str(e)[:50]}")
+        splash.update_status(f"Startup error: {str(e)[:50]}")
         splash.close()
         return False, None
 

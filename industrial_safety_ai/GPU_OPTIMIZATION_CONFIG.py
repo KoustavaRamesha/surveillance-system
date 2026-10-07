@@ -45,10 +45,10 @@ def get_gpu_info() -> dict:
 def setup_gpu_optimization() -> None:
     """Apply GPU optimization settings for RTX 4060."""
     if not torch.cuda.is_available():
-        print("⚠️ CUDA not available. Falling back to CPU.")
+        print("[WARN] CUDA not available. Falling back to CPU.")
         return
 
-    print("✅ CUDA Available - Configuring for RTX 4060...")
+    print("[OK] CUDA Available - Configuring for RTX 4060...")
 
     # ========================================================================
     # 2. TENSOR FLOAT 32 (TF32) OPTIMIZATION
@@ -75,9 +75,9 @@ def setup_gpu_optimization() -> None:
     # Allocate 85% for inference, leave 15% for overhead
     torch.cuda.set_per_process_memory_fraction(0.85)
 
-    print(f"  ✓ TF32 enabled (matrix & conv ops)")
-    print(f"  ✓ CUDNN benchmark enabled")
-    print(f"  ✓ Memory fraction set to 85%")
+    print("  [OK] TF32 enabled (matrix & conv ops)")
+    print("  [OK] CUDNN benchmark enabled")
+    print("  [OK] Memory fraction set to 85%")
 
 
 # ============================================================================
@@ -212,7 +212,7 @@ def setup_gpu_before_inference():
     import torch
     
     if torch.cuda.is_available():
-        print("🚀 Initializing RTX 4060 GPU...")
+        print("[INFO] Initializing RTX 4060 GPU...")
         
         # Warmup: run one inference to initialize CUDA
         dummy_input = torch.randn(1, 3, 640, 640).cuda()
@@ -220,9 +220,9 @@ def setup_gpu_before_inference():
             _ = model(dummy_input)  # warmup
         torch.cuda.empty_cache()
         
-        print("✅ GPU ready for inference")
+        print("[OK] GPU ready for inference")
     else:
-        print("⚠️ GPU not available, using CPU")
+        print("[WARN] GPU not available, using CPU")
 """
 
 # ============================================================================
@@ -260,27 +260,27 @@ def apply_all_gpu_optimizations() -> None:
     gpu_info = get_gpu_info()
 
     if gpu_info.get("available"):
-        print(f"✅ GPU Detected: {gpu_info['device_name']}")
+        print(f"[OK] GPU Detected: {gpu_info['device_name']}")
         print(f"   Compute Capability: {gpu_info['compute_capability']}")
         print(f"   Total Memory: {gpu_info['total_memory_gb']:.1f} GB")
         print(f"   Supports TF32: {gpu_info.get('supports_tf32', False)}")
 
         setup_gpu_optimization()
 
-        print("\n📊 GPU Optimization Applied:")
-        print("   • TensorFloat32 (TF32) enabled for 3x speedup")
-        print("   • CUDNN benchmark enabled for optimal kernels")
-        print("   • Memory optimized for RTX 4060 8GB VRAM")
-        print("   • FP16 inference enabled for 2x faster inference")
-        print("   • GPU post-processing (NMS) enabled")
+        print("\nGPU Optimization Applied:")
+        print("   - TensorFloat32 (TF32) enabled for 3x speedup")
+        print("   - CUDNN benchmark enabled for optimal kernels")
+        print("   - Memory optimized for RTX 4060 8GB VRAM")
+        print("   - FP16 inference enabled for 2x faster inference")
+        print("   - GPU post-processing (NMS) enabled")
 
-        print("\n⚡ Expected Performance:")
-        print("   • Single camera: 8-10 FPS inference")
-        print("   • Dual cameras: 4-5 FPS per camera (parallel)")
-        print("   • Display: 60 FPS (smooth video)")
-        print("   • Model: YOLOv8-m recommended")
+        print("\nExpected Performance:")
+        print("   - Single camera: 8-10 FPS inference")
+        print("   - Dual cameras: 4-5 FPS per camera (parallel)")
+        print("   - Display: 60 FPS (smooth video)")
+        print("   - Model: YOLOv8-m recommended")
 
-        print("\n💡 Tips for Maximum Performance:")
+        print("\nTips for Maximum Performance:")
         print("   1. Use model='yolov8m.pt' (medium - balanced)")
         print("   2. Set imgsz=640 for best accuracy/speed")
         print("   3. Enable half=True for FP16 (2x faster)")
@@ -288,7 +288,7 @@ def apply_all_gpu_optimizations() -> None:
         print("   5. Monitor GPU with: nvidia-smi")
 
     else:
-        print(f"⚠️ GPU Not Available: {gpu_info.get('message')}")
+        print(f"[WARN] GPU Not Available: {gpu_info.get('message')}")
         print("   Falling back to CPU inference (slower)")
 
 

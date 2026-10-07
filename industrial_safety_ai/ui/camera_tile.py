@@ -77,8 +77,8 @@ class CameraTile(QFrame):
         self.hud_header.addWidget(self.live_indicator)
 
         # Animated Threat Banner (shown only on active alert)
-        self.threat_banner = QLabel("🚨 THREAT ACTIVE")
-        self.threat_banner.setFont(QFont("Arial", 8, QFont.Bold))
+        self.threat_banner = QLabel("THREAT ACTIVE")
+        self.threat_banner.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.threat_banner.setStyleSheet("""
             background: #EF4444;
             color: #FFFFFF;
@@ -134,7 +134,7 @@ class CameraTile(QFrame):
     def set_camera_label(self, label: str, zone_name: str | None = None):
         self.cam_badge.setText(label)
         if zone_name:
-            self.zone_badge.setText(f"📍 {zone_name}")
+            self.zone_badge.setText(f"ZONE: {zone_name}")
             self.zone_badge.setVisible(True)
         else:
             self.zone_badge.setVisible(False)
@@ -164,7 +164,7 @@ class CameraTile(QFrame):
             self._glow_phase = 0.0
 
             threat_cfg = self.THREAT_COLORS.get(sev, self.THREAT_COLORS["critical"])
-            self.threat_banner.setText(f"🚨 {sev.upper()} ALERT")
+            self.threat_banner.setText(f"{sev.upper()} ALERT")
             self.threat_banner.setStyleSheet(f"""
                 background: {threat_cfg['border']};
                 color: #FFFFFF;

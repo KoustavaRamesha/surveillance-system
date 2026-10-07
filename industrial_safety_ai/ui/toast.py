@@ -29,8 +29,8 @@ from PySide6.QtWidgets import (
 
 class ToastNotification(QFrame):
     """
-    Ultra-modern, glassmorphic floating toast notification with fluid spring slide
-    and fade animations for real-time safety breaches.
+    Sleek, minimalist industrial notification tile with fluid spring slide
+    and fade animations. Professional aesthetic with zero emojis.
     """
 
     dismissed = Signal(object)              # self
@@ -47,8 +47,7 @@ class ToastNotification(QFrame):
             "title_color": "#FCA5A5",
             "bar_color": "#EF4444",
             "pulse_color": "#EF4444",
-            "icon": "🚨",
-            "badge": "CRITICAL THREAT",
+            "badge": "CRITICAL",
         },
         "high": {
             "border": "#F97316",
@@ -59,8 +58,7 @@ class ToastNotification(QFrame):
             "title_color": "#FDBA74",
             "bar_color": "#F97316",
             "pulse_color": "#FB923C",
-            "icon": "⚠️",
-            "badge": "HIGH WARNING",
+            "badge": "WARNING",
         },
         "medium": {
             "border": "#F59E0B",
@@ -71,8 +69,7 @@ class ToastNotification(QFrame):
             "title_color": "#FCD34D",
             "bar_color": "#F59E0B",
             "pulse_color": "#FBBF24",
-            "icon": "⚡",
-            "badge": "HAZARD ALERT",
+            "badge": "CAUTION",
         },
         "low": {
             "border": "#10B981",
@@ -83,7 +80,6 @@ class ToastNotification(QFrame):
             "title_color": "#6EE7B7",
             "bar_color": "#10B981",
             "pulse_color": "#34D399",
-            "icon": "🛡️",
             "badge": "NOTICE",
         },
     }
@@ -120,7 +116,7 @@ class ToastNotification(QFrame):
                 background-color: {self.theme['bg']};
                 border: 1px solid {self.theme['border']};
                 border-left: 4px solid {self.theme['border']};
-                border-radius: 10px;
+                border-radius: 8px;
             }}
             QFrame#ToastFrame:hover {{
                 border-color: {self.theme['title_color']};
@@ -132,39 +128,40 @@ class ToastNotification(QFrame):
         layout.setSpacing(8)
 
         # ---------------------------------------------------------
-        # Row 1: Pulsing Dot + Badge + Timestamp + Close Button
+        # Row 1: Status Dot + Badge + Timestamp + Close Button
         # ---------------------------------------------------------
         header_row = QHBoxLayout()
         header_row.setSpacing(6)
 
-        # Pulsing Live Dot
+        # Pulsing Live Status Dot (clean geometric circle)
         self.dot_lbl = QLabel("●")
         self.dot_lbl.setFont(QFont("Arial", 9, QFont.Bold))
         self.dot_lbl.setStyleSheet(f"color: {self.theme['pulse_color']};")
         header_row.addWidget(self.dot_lbl)
 
-        # Threat Badge
-        badge_lbl = QLabel(f" {self.theme['icon']} {self.theme['badge']} ")
-        badge_lbl.setFont(QFont("Arial", 8, QFont.Bold))
+        # Threat Severity Badge (clean uppercase text)
+        badge_lbl = QLabel(f" {self.theme['badge']} ")
+        badge_lbl.setFont(QFont("Segoe UI", 8, QFont.Bold))
         badge_lbl.setStyleSheet(f"""
             background: {self.theme['pill_bg']};
             color: {self.theme['pill_text']};
-            border-radius: 4px;
-            padding: 2px 6px;
+            border-radius: 3px;
+            padding: 2px 7px;
+            letter-spacing: 0.5px;
         """)
         header_row.addWidget(badge_lbl)
 
         # Timestamp
         time_str = self.alert.get("timestamp") or "Just now"
         time_lbl = QLabel(time_str)
-        time_lbl.setFont(QFont("Arial", 8))
+        time_lbl.setFont(QFont("Segoe UI", 8))
         time_lbl.setStyleSheet("color: #94A3B8; font-weight: 500;")
         header_row.addWidget(time_lbl)
 
         header_row.addStretch()
 
-        # Elegant Close Button
-        close_btn = QPushButton("✕")
+        # Minimalist Close Button
+        close_btn = QPushButton("×")
         close_btn.setFixedSize(22, 22)
         close_btn.setCursor(QCursor(Qt.PointingHandCursor))
         close_btn.setStyleSheet("""
@@ -187,7 +184,7 @@ class ToastNotification(QFrame):
         layout.addLayout(header_row)
 
         # ---------------------------------------------------------
-        # Row 2: Event Title (Large, Clear Typography)
+        # Row 2: Event Title (Clean, Professional Typography)
         # ---------------------------------------------------------
         raw_event = str(self.alert.get("event_type", "Threat Detected")).replace("_", " ").title()
         title_lbl = QLabel(raw_event)
@@ -203,7 +200,7 @@ class ToastNotification(QFrame):
         chips_row = QHBoxLayout()
         chips_row.setSpacing(6)
 
-        cam_chip = QLabel(f"📹 {cam_name}")
+        cam_chip = QLabel(f"CAM: {cam_name}")
         cam_chip.setStyleSheet("""
             background: #181E2C;
             color: #CBD5E1;
@@ -211,11 +208,11 @@ class ToastNotification(QFrame):
             border-radius: 4px;
             padding: 2px 7px;
             font-size: 10px;
-            font-weight: 500;
+            font-weight: 600;
         """)
         chips_row.addWidget(cam_chip)
 
-        zone_chip = QLabel(f"📍 {zone_name}")
+        zone_chip = QLabel(f"ZONE: {zone_name}")
         zone_chip.setStyleSheet("""
             background: #181E2C;
             color: #CBD5E1;
@@ -223,13 +220,13 @@ class ToastNotification(QFrame):
             border-radius: 4px;
             padding: 2px 7px;
             font-size: 10px;
-            font-weight: 500;
+            font-weight: 600;
         """)
         chips_row.addWidget(zone_chip)
 
         conf_val = float(self.alert.get("confidence", 0.0))
         if conf_val > 0:
-            conf_chip = QLabel(f"🎯 {int(conf_val * 100)}%")
+            conf_chip = QLabel(f"CONF: {int(conf_val * 100)}%")
             conf_chip.setStyleSheet("""
                 background: #181E2C;
                 color: #93C5FD;
@@ -245,11 +242,11 @@ class ToastNotification(QFrame):
         layout.addLayout(chips_row)
 
         # ---------------------------------------------------------
-        # Row 4: Actionable Guidance Callout
+        # Row 4: Action Guidance Callout
         # ---------------------------------------------------------
         rec = self.alert.get("recommendation")
         if rec:
-            rec_lbl = QLabel(f"⚡ {rec}")
+            rec_lbl = QLabel(f"ACTION: {rec}")
             rec_lbl.setWordWrap(True)
             rec_lbl.setStyleSheet("""
                 color: #E2E8F0;
@@ -268,7 +265,7 @@ class ToastNotification(QFrame):
         act_row.setSpacing(6)
 
         if self.alert.get("evidence"):
-            snap_btn = QPushButton("📷 View Evidence")
+            snap_btn = QPushButton("View Evidence")
             snap_btn.setCursor(QCursor(Qt.PointingHandCursor))
             snap_btn.setFixedHeight(26)
             snap_btn.setStyleSheet("""
@@ -276,7 +273,7 @@ class ToastNotification(QFrame):
                     background: #1E2638;
                     color: #E2E8F0;
                     border: 1px solid #2F3B54;
-                    border-radius: 5px;
+                    border-radius: 4px;
                     font-size: 10px;
                     font-weight: 600;
                     padding: 2px 10px;
@@ -292,7 +289,7 @@ class ToastNotification(QFrame):
 
         act_row.addStretch()
 
-        res_btn = QPushButton("✔ Resolve")
+        res_btn = QPushButton("Resolve")
         res_btn.setCursor(QCursor(Qt.PointingHandCursor))
         res_btn.setFixedHeight(26)
         res_btn.setStyleSheet("""
@@ -300,10 +297,10 @@ class ToastNotification(QFrame):
                 background: #064E3B;
                 color: #6EE7B7;
                 border: 1px solid #059669;
-                border-radius: 5px;
+                border-radius: 4px;
                 font-size: 10px;
                 font-weight: bold;
-                padding: 2px 12px;
+                padding: 2px 14px;
             }
             QPushButton:hover {
                 background: #059669;
@@ -575,7 +572,6 @@ class ToastNotificationManager(QWidget):
         """
         try:
             import winsound
-            # SystemAsterisk is the sleek, gentle Windows OS chime
             sound_alias = "SystemHand" if severity == "critical" else "SystemAsterisk"
             winsound.PlaySound(sound_alias, winsound.SND_ALIAS | winsound.SND_ASYNC)
         except Exception:

@@ -62,7 +62,7 @@ class AnimationShowcaseWindow(QMainWindow):
         title_box = QFrame()
         title_box.setStyleSheet("background: #111624; border: 1px solid #1D263B; border-radius: 8px; padding: 6px 12px;")
         tb_layout = QHBoxLayout(title_box)
-        title_lbl = QLabel("🎥 Live Surveillance Monitoring & Threat Terminal")
+        title_lbl = QLabel("Live Surveillance Monitoring & Threat Terminal")
         title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
         title_lbl.setStyleSheet("color: #F8FAFC;")
         tb_layout.addWidget(title_lbl)
@@ -99,7 +99,7 @@ class AnimationShowcaseWindow(QMainWindow):
         btn_layout = QHBoxLayout(btn_frame)
         btn_layout.setSpacing(8)
 
-        btn_intrusion = QPushButton("🚨 Trigger Intrusion Alert (High)")
+        btn_intrusion = QPushButton("Trigger Intrusion Alert (High)")
         btn_intrusion.setStyleSheet("""
             QPushButton {
                 background: #C2410C;
@@ -114,7 +114,7 @@ class AnimationShowcaseWindow(QMainWindow):
         btn_intrusion.clicked.connect(self._trigger_intrusion)
         btn_layout.addWidget(btn_intrusion)
 
-        btn_fire = QPushButton("🔥 Trigger Critical Fire (Critical)")
+        btn_fire = QPushButton("Trigger Critical Fire (Critical)")
         btn_fire.setStyleSheet("""
             QPushButton {
                 background: #B91C1C;
@@ -129,7 +129,7 @@ class AnimationShowcaseWindow(QMainWindow):
         btn_fire.clicked.connect(self._trigger_fire)
         btn_layout.addWidget(btn_fire)
 
-        btn_stack = QPushButton("⚡ Trigger 3 Rapid Stack Alerts")
+        btn_stack = QPushButton("Trigger 3 Rapid Stack Alerts")
         btn_stack.setStyleSheet("""
             QPushButton {
                 background: #1E293B;

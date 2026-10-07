@@ -32,7 +32,7 @@ class DemoDashboard(QMainWindow):
         layout = QVBoxLayout(central)
 
         # Title
-        title = QLabel("🚨 Industrial Safety Surveillance Dashboard")
+        title = QLabel("Industrial Safety Surveillance Dashboard")
         title.setFont(QFont("Arial", 14, QFont.Bold))
         title.setStyleSheet("color: #333; padding: 10px;")
         layout.addWidget(title)
@@ -48,33 +48,33 @@ class DemoDashboard(QMainWindow):
         button_layout.setSpacing(5)
         button_layout.setContentsMargins(8, 8, 8, 8)
 
-        btn_add_fire = QPushButton("📍 Add Fire Alert (Critical)")
+        btn_add_fire = QPushButton("Add Fire Alert (Critical)")
         btn_add_fire.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold; padding: 8px;")
         btn_add_fire.clicked.connect(self._add_fire_incident)
         button_layout.addWidget(btn_add_fire)
 
-        btn_add_intrusion = QPushButton("📍 Add Intrusion Alert (High)")
+        btn_add_intrusion = QPushButton("Add Intrusion Alert (High)")
         btn_add_intrusion.setStyleSheet("background-color: #ff8c00; color: white; font-weight: bold; padding: 8px;")
         btn_add_intrusion.clicked.connect(self._add_intrusion_incident)
         button_layout.addWidget(btn_add_intrusion)
 
-        btn_add_helmet = QPushButton("📍 Add No-Helmet Alert (Medium)")
+        btn_add_helmet = QPushButton("Add No-Helmet Alert (Medium)")
         btn_add_helmet.setStyleSheet("background-color: #ffaa00; color: white; font-weight: bold; padding: 8px;")
         btn_add_helmet.clicked.connect(self._add_helmet_incident)
         button_layout.addWidget(btn_add_helmet)
 
-        btn_add_vest = QPushButton("📍 Add No-Vest Alert (Low)")
+        btn_add_vest = QPushButton("Add No-Vest Alert (Low)")
         btn_add_vest.setStyleSheet("background-color: #88dd00; color: black; font-weight: bold; padding: 8px;")
         btn_add_vest.clicked.connect(self._add_vest_incident)
         button_layout.addWidget(btn_add_vest)
 
-        btn_clear = QPushButton("🗑️ Clear All Alerts")
+        btn_clear = QPushButton("Clear All Alerts")
         btn_clear.setStyleSheet("background-color: #666; color: white; font-weight: bold; padding: 8px;")
         btn_clear.clicked.connect(self.alert_panel.clear_all)
         button_layout.addWidget(btn_clear)
 
         info_label = QLabel(
-            "💡 Demo Instructions:\n"
+            "Demo Instructions:\n"
             "1. Click the buttons above to add sample incidents\n"
             "2. Watch the alerts animate into the panel\n"
             "3. Click 'Acknowledge' or 'Resolve' to see status changes\n"

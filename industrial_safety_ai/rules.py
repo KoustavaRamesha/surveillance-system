@@ -68,7 +68,7 @@ THREAT_LEVELS: Dict[str, Dict[str, Any]] = {
         "color": "#EF4444",
         "accent": "#DC2626",
         "glow": "rgba(239, 68, 68, 0.35)",
-        "icon": "🚨",
+        "icon": "●",
         "description": "Immediate catastrophic life safety or fire threat. Emergency procedures activated.",
     },
     "High": {
@@ -78,7 +78,7 @@ THREAT_LEVELS: Dict[str, Dict[str, Any]] = {
         "color": "#F97316",
         "accent": "#EA580C",
         "glow": "rgba(249, 115, 22, 0.30)",
-        "icon": "🚷",
+        "icon": "●",
         "description": "Restricted zone perimeter breach or machinery hazard. Security alert dispatched.",
     },
     "Medium": {
@@ -88,7 +88,7 @@ THREAT_LEVELS: Dict[str, Dict[str, Any]] = {
         "color": "#F59E0B",
         "accent": "#D97706",
         "glow": "rgba(245, 158, 11, 0.25)",
-        "icon": "⚠️",
+        "icon": "●",
         "description": "PPE non-compliance (missing helmet / vest). Supervisor notification required.",
     },
     "Low": {
@@ -98,7 +98,7 @@ THREAT_LEVELS: Dict[str, Dict[str, Any]] = {
         "color": "#06B6D4",
         "accent": "#0891B2",
         "glow": "rgba(6, 182, 212, 0.20)",
-        "icon": "ℹ️",
+        "icon": "●",
         "description": "Minor safety advisory, pathway obstruction, or loitering.",
     },
     "Info": {
@@ -108,7 +108,7 @@ THREAT_LEVELS: Dict[str, Dict[str, Any]] = {
         "color": "#10B981",
         "accent": "#059669",
         "glow": "rgba(16, 185, 129, 0.20)",
-        "icon": "🛡️",
+        "icon": "●",
         "description": "All zones monitored. Zero active safety breaches.",
     },
 }

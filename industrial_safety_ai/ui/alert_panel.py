@@ -68,7 +68,7 @@ class EvidencePreviewDialog(QDialog):
 
         header.addStretch()
 
-        close_btn = QPushButton("✕")
+        close_btn = QPushButton("×")
         close_btn.setFixedSize(30, 30)
         close_btn.setCursor(QCursor(Qt.PointingHandCursor))
         close_btn.setStyleSheet("""
@@ -113,11 +113,11 @@ class EvidencePreviewDialog(QDialog):
         meta_layout.setContentsMargins(14, 8, 14, 8)
         meta_layout.setSpacing(16)
 
-        cam_text = f"📹 <b>Camera:</b> {alert_data.get('camera_name', alert_data.get('camera_id', 'Unknown'))}"
-        zone_text = f"📍 <b>Zone:</b> {alert_data.get('zone', 'Global')}"
-        time_text = f"🕒 <b>Time:</b> {alert_data.get('timestamp', '--:--:--')}"
+        cam_text = f"<b>Camera:</b> {alert_data.get('camera_name', alert_data.get('camera_id', 'Unknown'))}"
+        zone_text = f"<b>Zone:</b> {alert_data.get('zone', 'Global')}"
+        time_text = f"<b>Time:</b> {alert_data.get('timestamp', '--:--:--')}"
         conf_val = float(alert_data.get("confidence", 0.0))
-        conf_text = f"🎯 <b>Confidence:</b> {int(conf_val * 100)}%"
+        conf_text = f"<b>Confidence:</b> {int(conf_val * 100)}%"
 
         for t in [cam_text, zone_text, time_text, conf_text]:
             lbl = QLabel(t)
@@ -133,7 +133,7 @@ class EvidencePreviewDialog(QDialog):
             rec_frame.setStyleSheet("background: #231B0D; border: 1px solid #78350F; border-radius: 6px; padding: 6px 12px;")
             rec_layout = QHBoxLayout(rec_frame)
             rec_layout.setContentsMargins(10, 4, 10, 4)
-            rec_lbl = QLabel(f"⚡ <b>Action Recommendation:</b> {rec}")
+            rec_lbl = QLabel(f"<b>Action Recommendation:</b> {rec}")
             rec_lbl.setTextFormat(Qt.RichText)
             rec_lbl.setStyleSheet("color: #FCD34D; font-size: 11px;")
             rec_layout.addWidget(rec_lbl)
@@ -145,7 +145,7 @@ class EvidencePreviewDialog(QDialog):
 
         # Open in Explorer / folder
         if ev_path and os.path.exists(ev_path):
-            open_folder_btn = QPushButton("📁 Show in File Explorer")
+            open_folder_btn = QPushButton("Show in File Explorer")
             open_folder_btn.setCursor(QCursor(Qt.PointingHandCursor))
             open_folder_btn.setStyleSheet("""
                 QPushButton {
@@ -169,7 +169,7 @@ class EvidencePreviewDialog(QDialog):
         # Resolve button directly in dialog
         status = str(alert_data.get("status", "Open")).lower()
         if status != "resolved":
-            resolve_btn = QPushButton("✔ Resolve Incident")
+            resolve_btn = QPushButton("Resolve Incident")
             resolve_btn.setCursor(QCursor(Qt.PointingHandCursor))
             resolve_btn.setStyleSheet("""
                 QPushButton {
@@ -279,7 +279,6 @@ class AlertCardWidget(QFrame):
                 "border": "#EF4444",
                 "pill_bg": "#DC2626",
                 "pill_text": "#FFFFFF",
-                "icon": "🔥",
                 "title_color": "#FCA5A5",
                 "bg": "#1C1215",
                 "chip_bg": "#2B161B",
@@ -290,20 +289,16 @@ class AlertCardWidget(QFrame):
                 "border": "#F97316",
                 "pill_bg": "#EA580C",
                 "pill_text": "#FFFFFF",
-                "icon": "🚷",
                 "title_color": "#FDBA74",
                 "bg": "#1C1510",
                 "chip_bg": "#2B1B14",
                 "chip_text": "#FB923C",
             }
         elif self._severity == "medium":
-            event = str(self.alert.get("event_type", "")).lower()
-            icon = "⛑️" if "helmet" in event else ("🦺" if "vest" in event else "⚠️")
             return {
                 "border": "#F59E0B",
                 "pill_bg": "#D97706",
                 "pill_text": "#000000",
-                "icon": icon,
                 "title_color": "#FCD34D",
                 "bg": "#1B1710",
                 "chip_bg": "#292113",
@@ -314,7 +309,6 @@ class AlertCardWidget(QFrame):
                 "border": "#10B981",
                 "pill_bg": "#059669",
                 "pill_text": "#FFFFFF",
-                "icon": "🛡️",
                 "title_color": "#6EE7B7",
                 "bg": "#101814",
                 "chip_bg": "#14241D",
@@ -335,7 +329,7 @@ class AlertCardWidget(QFrame):
         top_row.setSpacing(8)
 
         self.sev_badge = QLabel(f" {self.alert.get('severity', 'LOW').upper()} ")
-        self.sev_badge.setFont(QFont("Arial", 8, QFont.Bold))
+        self.sev_badge.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.sev_badge.setStyleSheet(f"""
             background: {theme['pill_bg']};
             color: {theme['pill_text']};
@@ -346,8 +340,8 @@ class AlertCardWidget(QFrame):
         top_row.addWidget(self.sev_badge)
 
         event_name = str(self.alert.get("event_type", "Threat Detected")).replace("_", " ").title()
-        self.title_lbl = QLabel(f"{theme['icon']} {event_name}")
-        self.title_lbl.setFont(QFont("Arial", 10, QFont.Bold))
+        self.title_lbl = QLabel(event_name)
+        self.title_lbl.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.title_lbl.setStyleSheet(f"color: {theme['title_color']};")
         top_row.addWidget(self.title_lbl)
 
@@ -355,7 +349,7 @@ class AlertCardWidget(QFrame):
 
         time_str = self.alert.get("timestamp") or "--:--:--"
         self.time_lbl = QLabel(time_str)
-        self.time_lbl.setFont(QFont("Arial", 8))
+        self.time_lbl.setFont(QFont("Segoe UI", 8))
         self.time_lbl.setStyleSheet("color: #94A3B8; font-weight: 500;")
         top_row.addWidget(self.time_lbl)
 
@@ -368,30 +362,32 @@ class AlertCardWidget(QFrame):
         meta_row.setSpacing(6)
 
         cam_name = self.alert.get("camera_name") or self.alert.get("camera_id") or "Camera"
-        cam_chip = QLabel(f"📹 {cam_name}")
+        cam_chip = QLabel(f"CAM: {cam_name}")
         cam_chip.setStyleSheet("""
             background: #202534;
             color: #CBD5E1;
             border-radius: 3px;
             padding: 2px 6px;
             font-size: 10px;
+            font-weight: 600;
         """)
         meta_row.addWidget(cam_chip)
 
         zone_name = self.alert.get("zone") or "Global"
-        zone_chip = QLabel(f"📍 {zone_name}")
+        zone_chip = QLabel(f"ZONE: {zone_name}")
         zone_chip.setStyleSheet("""
             background: #202534;
             color: #CBD5E1;
             border-radius: 3px;
             padding: 2px 6px;
             font-size: 10px;
+            font-weight: 600;
         """)
         meta_row.addWidget(zone_chip)
 
         conf_val = float(self.alert.get("confidence", 0.0))
         if conf_val > 0:
-            conf_chip = QLabel(f"{int(conf_val * 100)}%")
+            conf_chip = QLabel(f"CONF: {int(conf_val * 100)}%")
             conf_chip.setStyleSheet(f"""
                 background: {theme['chip_bg']};
                 color: {theme['chip_text']};
@@ -408,7 +404,7 @@ class AlertCardWidget(QFrame):
         # Recommendation line if exists
         rec = self.alert.get("recommendation")
         if rec:
-            rec_lbl = QLabel(f"⚡ {rec}")
+            rec_lbl = QLabel(f"ACTION: {rec}")
             rec_lbl.setStyleSheet("color: #FCD34D; font-size: 10px; background: rgba(0,0,0,0.22); border-radius: 3px; padding: 2px 6px;")
             main_layout.addWidget(rec_lbl)
 
@@ -419,7 +415,7 @@ class AlertCardWidget(QFrame):
         bot_row.setSpacing(6)
 
         self.status_lbl = QLabel()
-        self.status_lbl.setFont(QFont("Arial", 8, QFont.Bold))
+        self.status_lbl.setFont(QFont("Segoe UI", 8, QFont.Bold))
         bot_row.addWidget(self.status_lbl)
 
         bot_row.addStretch()
@@ -427,7 +423,7 @@ class AlertCardWidget(QFrame):
         # Focus Camera Button
         cam_id = self.alert.get("camera_id")
         if cam_id:
-            self.focus_btn = QPushButton("📹 Focus")
+            self.focus_btn = QPushButton("Focus")
             self.focus_btn.setToolTip("Focus camera feed in grid")
             self.focus_btn.setCursor(QCursor(Qt.PointingHandCursor))
             self.focus_btn.setFixedHeight(24)
@@ -438,7 +434,7 @@ class AlertCardWidget(QFrame):
                     border: 1px solid #2B3A54;
                     border-radius: 4px;
                     font-size: 10px;
-                    padding: 2px 6px;
+                    padding: 2px 8px;
                 }
                 QPushButton:hover {
                     background: #2B3A54;
@@ -450,7 +446,7 @@ class AlertCardWidget(QFrame):
 
         # Snapshot Button
         if self.alert.get("evidence"):
-            self.view_btn = QPushButton("📷 View")
+            self.view_btn = QPushButton("Evidence")
             self.view_btn.setToolTip("Inspect snapshot")
             self.view_btn.setCursor(QCursor(Qt.PointingHandCursor))
             self.view_btn.setFixedHeight(24)
@@ -461,7 +457,7 @@ class AlertCardWidget(QFrame):
                     border: 1px solid #33394D;
                     border-radius: 4px;
                     font-size: 10px;
-                    padding: 2px 6px;
+                    padding: 2px 8px;
                 }
                 QPushButton:hover {
                     background: #33394D;
@@ -472,7 +468,7 @@ class AlertCardWidget(QFrame):
             bot_row.addWidget(self.view_btn)
 
         # Acknowledge Button
-        self.ack_btn = QPushButton("✓ Ack")
+        self.ack_btn = QPushButton("Ack")
         self.ack_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.ack_btn.setFixedHeight(24)
         self.ack_btn.setStyleSheet("""
@@ -483,7 +479,7 @@ class AlertCardWidget(QFrame):
                 border-radius: 4px;
                 font-size: 10px;
                 font-weight: bold;
-                padding: 2px 6px;
+                padding: 2px 8px;
             }
             QPushButton:hover {
                 background: #B45309;
@@ -494,7 +490,7 @@ class AlertCardWidget(QFrame):
         bot_row.addWidget(self.ack_btn)
 
         # Resolve Button (Generous width, crisp click)
-        self.res_btn = QPushButton("✔ Resolve")
+        self.res_btn = QPushButton("Resolve")
         self.res_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.res_btn.setFixedHeight(24)
         self.res_btn.setStyleSheet("""
@@ -505,7 +501,7 @@ class AlertCardWidget(QFrame):
                 border-radius: 4px;
                 font-size: 10px;
                 font-weight: bold;
-                padding: 2px 8px;
+                padding: 2px 10px;
             }
             QPushButton:hover {
                 background: #059669;
@@ -527,7 +523,7 @@ class AlertCardWidget(QFrame):
                 self.ack_btn.setEnabled(False)
                 self.ack_btn.setStyleSheet("background: #171B26; color: #475569; border: 1px solid #222634; border-radius: 4px; font-size: 10px;")
         elif s == "resolved":
-            self.status_lbl.setText("✔ RESOLVED")
+            self.status_lbl.setText("● RESOLVED")
             self.status_lbl.setStyleSheet("color: #34D399; font-weight: bold;")
             if hasattr(self, "ack_btn"):
                 self.ack_btn.setEnabled(False)
@@ -624,21 +620,22 @@ class AlertPanel(QWidget):
         header = QHBoxLayout()
         header.setSpacing(6)
 
-        title_icon = QLabel("🚨")
-        title_icon.setFont(QFont("Arial", 12))
+        title_icon = QLabel("●")
+        title_icon.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        title_icon.setStyleSheet("color: #EF4444;")
         header.addWidget(title_icon)
 
         title_text = QLabel("Live Threat Stream")
-        title_text.setFont(QFont("Arial", 11, QFont.Bold))
+        title_text.setFont(QFont("Segoe UI", 11, QFont.Bold))
         title_text.setStyleSheet("color: #F8FAFC;")
         header.addWidget(title_text)
 
         header.addStretch()
 
         # Sound Mute/Unmute Toggle
-        self.sound_btn = QPushButton("🔊")
+        self.sound_btn = QPushButton("AUDIO: ON")
         self.sound_btn.setToolTip("Toggle alert audio chimes")
-        self.sound_btn.setFixedSize(28, 26)
+        self.sound_btn.setFixedHeight(24)
         self.sound_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.sound_btn.setStyleSheet("""
             QPushButton {
@@ -646,7 +643,9 @@ class AlertPanel(QWidget):
                 color: #CBD5E1;
                 border: 1px solid #263248;
                 border-radius: 4px;
-                font-size: 11px;
+                font-size: 9px;
+                font-weight: bold;
+                padding: 2px 8px;
             }
             QPushButton:hover {
                 background: #263248;
@@ -658,7 +657,7 @@ class AlertPanel(QWidget):
 
         # Active badge
         self.total_badge = QLabel("0 Active")
-        self.total_badge.setFont(QFont("Arial", 8, QFont.Bold))
+        self.total_badge.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.total_badge.setStyleSheet("""
             background: #171D2B;
             color: #94A3B8;
@@ -684,20 +683,20 @@ class AlertPanel(QWidget):
         stats_layout.setContentsMargins(6, 4, 6, 4)
         stats_layout.setSpacing(8)
 
-        self.crit_stat = QLabel("🔴 Crit: 0")
-        self.crit_stat.setFont(QFont("Arial", 8, QFont.Bold))
+        self.crit_stat = QLabel("CRIT: 0")
+        self.crit_stat.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.crit_stat.setStyleSheet("color: #EF4444;")
 
-        self.high_stat = QLabel("🟠 High: 0")
-        self.high_stat.setFont(QFont("Arial", 8, QFont.Bold))
+        self.high_stat = QLabel("HIGH: 0")
+        self.high_stat.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.high_stat.setStyleSheet("color: #F97316;")
 
-        self.med_stat = QLabel("🟡 Med: 0")
-        self.med_stat.setFont(QFont("Arial", 8, QFont.Bold))
+        self.med_stat = QLabel("MED: 0")
+        self.med_stat.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.med_stat.setStyleSheet("color: #F59E0B;")
 
-        self.res_stat = QLabel("🟢 Resolved: 0")
-        self.res_stat.setFont(QFont("Arial", 8, QFont.Bold))
+        self.res_stat = QLabel("RESOLVED: 0")
+        self.res_stat.setFont(QFont("Segoe UI", 8, QFont.Bold))
         self.res_stat.setStyleSheet("color: #10B981;")
 
         stats_layout.addWidget(self.crit_stat)
@@ -716,10 +715,10 @@ class AlertPanel(QWidget):
         self.filter_buttons = {}
         filters = [
             ("ALL", "All"),
-            ("CRITICAL", "🔥 Crit"),
-            ("HIGH", "⚠️ High"),
-            ("MEDIUM", "🟡 Med"),
-            ("RESOLVED", "✔ Done"),
+            ("CRITICAL", "Critical"),
+            ("HIGH", "High"),
+            ("MEDIUM", "Medium"),
+            ("RESOLVED", "Resolved"),
         ]
         for key, label in filters:
             btn = QPushButton(label)
@@ -739,7 +738,7 @@ class AlertPanel(QWidget):
         search_layout.setSpacing(4)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Search camera, zone, threat...")
+        self.search_input.setPlaceholderText("Search camera, zone, threat...")
         self.search_input.setFixedHeight(26)
         self.search_input.setStyleSheet("""
             QLineEdit {
@@ -757,7 +756,7 @@ class AlertPanel(QWidget):
         self.search_input.textChanged.connect(self._on_search_text_changed)
         search_layout.addWidget(self.search_input)
 
-        clear_search_btn = QPushButton("✕")
+        clear_search_btn = QPushButton("×")
         clear_search_btn.setFixedSize(26, 26)
         clear_search_btn.setCursor(QCursor(Qt.PointingHandCursor))
         clear_search_btn.setStyleSheet("""
@@ -802,7 +801,7 @@ class AlertPanel(QWidget):
         sel_action_layout.setContentsMargins(6, 4, 6, 4)
         sel_action_layout.setSpacing(6)
 
-        self.sel_ack_btn = QPushButton("✓ Ack Selected")
+        self.sel_ack_btn = QPushButton("Acknowledge Selected")
         self.sel_ack_btn.setEnabled(False)
         self.sel_ack_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.sel_ack_btn.setStyleSheet("""
@@ -828,7 +827,7 @@ class AlertPanel(QWidget):
         self.sel_ack_btn.clicked.connect(self._acknowledge_selected)
         sel_action_layout.addWidget(self.sel_ack_btn)
 
-        self.sel_res_btn = QPushButton("✔ Resolve Selected")
+        self.sel_res_btn = QPushButton("Resolve Selected")
         self.sel_res_btn.setEnabled(False)
         self.sel_res_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.sel_res_btn.setStyleSheet("""
@@ -926,14 +925,16 @@ class AlertPanel(QWidget):
     def _toggle_sound(self):
         self._sound_enabled = not self._sound_enabled
         if self._sound_enabled:
-            self.sound_btn.setText("🔊")
+            self.sound_btn.setText("AUDIO: ON")
             self.sound_btn.setStyleSheet("""
                 QPushButton {
                     background: #171D2B;
                     color: #CBD5E1;
                     border: 1px solid #263248;
                     border-radius: 4px;
-                    font-size: 11px;
+                    font-size: 9px;
+                    font-weight: bold;
+                    padding: 2px 8px;
                 }
                 QPushButton:hover {
                     background: #263248;
@@ -941,14 +942,16 @@ class AlertPanel(QWidget):
                 }
             """)
         else:
-            self.sound_btn.setText("🔇")
+            self.sound_btn.setText("AUDIO: OFF")
             self.sound_btn.setStyleSheet("""
                 QPushButton {
                     background: #3B1B1F;
                     color: #F87171;
                     border: 1px solid #7F1D1D;
                     border-radius: 4px;
-                    font-size: 11px;
+                    font-size: 9px;
+                    font-weight: bold;
+                    padding: 2px 8px;
                 }
                 QPushButton:hover {
                     background: #7F1D1D;
@@ -1059,10 +1062,10 @@ class AlertPanel(QWidget):
         res = sum(1 for a in self._alerts if a.get("status") == "Resolved")
         active = sum(1 for a in self._alerts if a.get("status") != "Resolved")
 
-        self.crit_stat.setText(f"🔴 Crit: {crit}")
-        self.high_stat.setText(f"🟠 High: {high}")
-        self.med_stat.setText(f"🟡 Med: {med}")
-        self.res_stat.setText(f"🟢 Res: {res}")
+        self.crit_stat.setText(f"CRIT: {crit}")
+        self.high_stat.setText(f"HIGH: {high}")
+        self.med_stat.setText(f"MED: {med}")
+        self.res_stat.setText(f"RES: {res}")
 
         if active > 0:
             self.total_badge.setText(f"{active} Active")

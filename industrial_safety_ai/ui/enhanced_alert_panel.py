@@ -35,10 +35,10 @@ class AlertItemWidget(QFrame):
     }
 
     SEVERITY_ICONS = {
-        "Critical": "🚨",
-        "High": "⚠️",
-        "Medium": "⚡",
-        "Low": "ℹ️",
+        "Critical": "●",
+        "High": "●",
+        "Medium": "●",
+        "Low": "●",
     }
 
     def __init__(self, incident_dict: dict, parent=None):
@@ -62,8 +62,9 @@ class AlertItemWidget(QFrame):
 
         # Header: icon + event + timestamp + status badge
         header_layout = QHBoxLayout()
-        icon_label = QLabel(self.SEVERITY_ICONS.get(self.severity, "❓"))
-        icon_label.setFont(QFont("Arial", 16))
+        icon_label = QLabel(self.SEVERITY_ICONS.get(self.severity, "●"))
+        icon_label.setFont(QFont("Arial", 11, QFont.Bold))
+        icon_label.setStyleSheet(f"color: {self.SEVERITY_COLORS.get(self.severity, '#ffaa00')};")
         header_layout.addWidget(icon_label)
 
         event_label = QLabel(self._format_event_title())
@@ -104,7 +105,7 @@ class AlertItemWidget(QFrame):
 
         # Recommendation (if available)
         if self.recommendation:
-            rec_label = QLabel(f"✓ {self.recommendation}")
+            rec_label = QLabel(f"ACTION: {self.recommendation}")
             rec_label.setFont(QFont("Arial", 9))
             rec_label.setStyleSheet(f"color: {self.SEVERITY_COLORS[self.severity]}; font-weight: bold;")
             rec_label.setWordWrap(True)

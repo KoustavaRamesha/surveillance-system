@@ -141,7 +141,7 @@ class ZoneDialog(QDialog):
 
         # Header Info Banner
         header = QHBoxLayout()
-        title_lbl = QLabel(f"📍 Configure Zone for <b>{camera_id}</b>")
+        title_lbl = QLabel(f"Configure Zone for <b>{camera_id}</b>")
         title_lbl.setFont(QFont("Arial", 12))
         title_lbl.setTextFormat(Qt.RichText)
         header.addWidget(title_lbl)
@@ -201,7 +201,7 @@ class ZoneDialog(QDialog):
         self.name_input.setPlaceholderText("e.g. Danger Zone, Forklift Corridor, No-Entry Bay")
         name_row.addWidget(self.name_input, 1)
 
-        clear_btn = QPushButton("🗑️ Clear Zone")
+        clear_btn = QPushButton("Clear Zone")
         clear_btn.setStyleSheet("""
             QPushButton {
                 background: #27272A;
@@ -241,7 +241,7 @@ class ZoneDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_bar.addWidget(cancel_btn)
 
-        save_btn = QPushButton("💾 Save Zone")
+        save_btn = QPushButton("Save Zone")
         save_btn.setStyleSheet("""
             QPushButton {
                 background: #EA580C;
